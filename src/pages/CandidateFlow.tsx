@@ -21,11 +21,13 @@ import {
   CheckCircle,
   HelpCircle,
   X,
-  ExternalLink
+  ExternalLink,
+  Menu
 } from "lucide-react";
 
 export default function CandidateFlow() {
   const { navigate } = useRouter();
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   // Active state ids
   const [candidate, setCandidate] = useState<Candidate | null>(null);
@@ -302,22 +304,145 @@ export default function CandidateFlow() {
 
 
   return (
-    <div className="bg-[#121212] min-h-screen text-[#EFEFEF] flex flex-col justify-between selection:bg-[#E7C768]">
+    <div className="bg-gradient-to-b from-[#17344F] to-[#265582] min-h-screen text-white font-sans antialiased selection:bg-[#E7C768] selection:text-[#17344F] flex flex-col justify-between">
       
-      {/* Top Banner Navigation */}
-      <header className="bg-[#1A1A1A]/90 border-b border-white/10 px-4 md:px-8 py-3.5 flex items-center justify-between backdrop-blur-md">
-        <div className="flex items-center gap-2.5">
-          <img src="https://i.ibb.co/WWRbtPq0/RR-Logo.png" alt="RR" className="w-8 h-8 object-contain" />
-          <div className="text-left">
-            <span className="font-bold text-sm tracking-tight text-[#E7C768]">Робот Рекрутер (RR)</span>
-            <span className="text-[10px] block font-mono text-gray-400 uppercase">Обучение & Онбординг</span>
+      {/* Top Header Navigation with Direct Access Bypasses */}
+      <header className="sticky top-0 z-50 bg-[#17344F]/95 backdrop-blur-md border-b border-white/10 px-4 md:px-8 py-4">
+        <div className="flex items-center justify-between gap-4 w-full">
+          <div className="flex items-center gap-2.5 cursor-pointer" onClick={() => navigate("/")}>
+            <img src="https://i.ibb.co/WWRbtPq0/RR-Logo.png" alt="RR" className="w-8 h-8 object-contain" />
+            <div className="text-left">
+              <span className="font-bold text-sm tracking-tight text-[#E7C768]">Робот Рекрутер (RR)</span>
+              <span className="text-[9px] block font-mono text-slate-300 uppercase">Обучение & Онбординг</span>
+            </div>
           </div>
+
+          {/* Global Multi-Page Navigation accessible directly */}
+          <nav className="hidden md:flex items-center justify-center gap-2 md:gap-4 text-xs md:text-sm font-semibold">
+            <button 
+              id="nav_landing"
+              onClick={() => navigate("/main")} 
+              className="transition px-3 py-1.5 rounded-xl text-slate-300 hover:text-white"
+            >
+              Главная
+            </button>
+            <button 
+              id="nav_catalog"
+              onClick={() => navigate("/vacancy")} 
+              className="transition px-3 py-1.5 rounded-xl text-slate-300 hover:text-white"
+            >
+              Каталог Профессий
+            </button>
+            <button 
+              id="nav_employer"
+              onClick={() => {
+                localStorage.setItem("employer_active_tab_intent", "crm");
+                navigate("/employer");
+              }} 
+              className="transition px-3 py-1.5 rounded-xl text-slate-300 hover:text-white flex items-center gap-1 bg-white/5 border border-white/10"
+            >
+              Панель Руководителя 💼
+            </button>
+            <button 
+              id="nav_candidate"
+              onClick={() => navigate("/candidate")} 
+              className="transition px-3 py-1.5 rounded-xl text-[#E7C768] bg-white/10 border border-[#E7C768]/20"
+            >
+              Кабинет Соискателя 🎓
+            </button>
+            <button 
+              id="nav_admin"
+              onClick={() => navigate("/admin")} 
+              className="transition px-3 py-2 rounded-xl text-indigo-300 hover:text-indigo-150 flex items-center gap-1 bg-indigo-500/10 border border-indigo-500/20"
+            >
+              Админ ⚙️
+            </button>
+          </nav>
+
+          {candidate ? (
+            <div className="hidden md:block text-right text-xs">
+              <span className="text-slate-300">Кандидат: </span>
+              <strong className="text-[#E7C768] font-bold">{candidate.name}</strong>
+            </div>
+          ) : (
+            <div className="hidden md:block"></div>
+          )}
+
+          {/* Mobile Burger Toggle Button */}
+          <button 
+            type="button"
+            className="md:hidden flex items-center justify-center p-2 rounded-xl hover:bg-white/10 text-white transition-all"
+            onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+          >
+            {mobileMenuOpen ? <X className="w-6 h-6 text-[#E7C768]" /> : <Menu className="w-6 h-6" />}
+          </button>
         </div>
 
-        {candidate && (
-          <div className="text-right text-xs">
-            <span className="text-gray-400">Кандидат: </span>
-            <strong className="text-[#E7C768] font-bold">{candidate.name}</strong>
+        {/* Mobile Dropdown Menu */}
+        {mobileMenuOpen && (
+          <div className="md:hidden mt-4 pt-4 border-t border-white/10 flex flex-col gap-3 font-semibold">
+            <button 
+              id="mobile_nav_landing"
+              onClick={() => {
+                navigate("/main");
+                setMobileMenuOpen(false);
+              }} 
+              className="transition text-left w-full px-4 py-3 rounded-xl text-slate-300 hover:text-white hover:bg-white/5"
+            >
+              Главная
+            </button>
+            <button 
+              id="mobile_nav_catalog"
+              onClick={() => {
+                navigate("/vacancy");
+                setMobileMenuOpen(false);
+              }} 
+              className="transition text-left w-full px-4 py-3 rounded-xl text-slate-300 hover:text-white hover:bg-white/5"
+            >
+              Каталог Профессий
+            </button>
+            <button 
+              id="mobile_nav_employer"
+              onClick={() => {
+                localStorage.setItem("employer_active_tab_intent", "crm");
+                navigate("/employer");
+                setMobileMenuOpen(false);
+              }} 
+              className="transition text-left w-full px-4 py-3 rounded-xl text-slate-300 hover:text-white hover:bg-white/5 flex items-center justify-between"
+            >
+              <span>Панель Руководителя</span>
+              <span>💼</span>
+            </button>
+            <button 
+              id="mobile_nav_candidate"
+              onClick={() => {
+                navigate("/candidate");
+                setMobileMenuOpen(false);
+              }} 
+              className="transition text-left w-full px-4 py-3 rounded-xl text-[#E7C768] bg-white/10 border border-[#E7C768]/20 flex items-center justify-between"
+            >
+              <span>Кабинет Соискателя</span>
+              <span>🎓</span>
+            </button>
+            <button 
+              id="mobile_nav_admin"
+              onClick={() => {
+                navigate("/admin");
+                setMobileMenuOpen(false);
+              }} 
+              className="transition text-left w-full px-4 py-3 border border-indigo-500/20 rounded-xl text-indigo-300 hover:text-indigo-150 bg-indigo-500/10"
+            >
+              Кабинет Администратора ⚙️
+            </button>
+            {candidate && (
+              <>
+                <div className="h-px bg-white/10 my-1"></div>
+                <div className="px-4 py-2 bg-white/5 rounded-xl text-xs text-left">
+                  <span className="text-slate-300">Соискатель: </span>
+                  <strong className="text-[#E7C768] font-bold block mt-0.5">{candidate.name}</strong>
+                </div>
+              </>
+            )}
           </div>
         )}
       </header>

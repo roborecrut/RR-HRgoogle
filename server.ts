@@ -16,7 +16,37 @@ const db = {
   projects: [] as any[],
   candidates: [] as any[],
   telegramLog: [] as any[],
+  payments: [] as any[],
 };
+
+// Seed initial payments
+db.payments.push({
+  id: "pay-1",
+  companyName: "ООО 'УльтраДизайн'",
+  amount: 1000,
+  itemType: "system_creation", 
+  itemName: "Система найма и обучения (Менеджер по продажам)",
+  status: "completed",
+  createdAt: new Date(Date.now() - 3600000 * 24).toISOString(),
+});
+db.payments.push({
+  id: "pay-2",
+  companyName: "ООО 'КорпРешения'",
+  amount: 100,
+  itemType: "interview",
+  itemName: "1 ИИ-интервью соискателя",
+  status: "completed",
+  createdAt: new Date(Date.now() - 3600000 * 18).toISOString(),
+});
+db.payments.push({
+  id: "pay-3",
+  companyName: "ИП Петров",
+  amount: 100,
+  itemType: "training",
+  itemName: "1 ИИ-обучение соискателя",
+  status: "pending",
+  createdAt: new Date(Date.now() - 300000).toISOString(),
+});
 
 // Seed default data for sales manager and product specialist so that the app opens with some active CRM information
 db.projects.push({
@@ -548,6 +578,118 @@ ${answersDesc}
       scores,
       trainingPlan
     });
+  });
+
+  // AI-Powered / Dynamic Consultant Chatbot for Candidate Vacancy Landing
+  app.post("/api/vacancy-consultant-chat", async (req, res) => {
+    const { projectId, messages, userQuestion } = req.body;
+    const project = db.projects.find(p => p.id === projectId) || db.projects[0];
+
+    const companyName = project?.companyName || "Наша Компания";
+    const roleName = project?.roleName || "Специалист";
+    const salaryTerms = project?.salaryTerms || "Конкурентные условия";
+    const scheduleTerms = project?.scheduleTerms || "Гибкий график";
+    const wiki = project?.customWiki || "Обучение за счет компании";
+
+    const aiClient = getGeminiClient();
+    if (aiClient) {
+      try {
+        const historyText = messages && Array.isArray(messages)
+          ? messages.map((m: any) => `${m.sender === "candidate" ? "Кандидат" : "Робот-Консультант"}: ${m.text}`).join("\n")
+          : "";
+
+        const prompt = `Ты — Робот-Консультант RR. Твоя задача — с восторгом и подробно презентовать вакансию кандидату, отвечать на вопросы, преодолевать возражения и побудить его нажать "Пройти собеседование"!\n\n` +
+          `ДАННЫЕ О ВАКАНСИИ И КОМПАНИИ:\n` +
+          `- Компания: ${companyName}\n` +
+          `- Должность: ${roleName}\n` +
+          `- Оплата/Мотивация: ${salaryTerms}\n` +
+          `- График и формат: ${scheduleTerms}\n` +
+          `- База знаний / Вики регламенты: ${wiki}\n\n` +
+          `История диалога до этого момента:\n${historyText}\n\n` +
+          `Новый вопрос соискателя: "${userQuestion}"\n\n` +
+          `Сформулируй дружелюбный, грамотный, убедительный, короткий ответ на русском языке (максимум 4-5 предложений), ответив на вопрос соискателя. Убеди его, что это идеальная вакансия для старта!`;
+
+        const aiResponse = await aiClient.models.generateContent({
+          model: "gemini-3.5-flash",
+          contents: prompt,
+        });
+
+        const reply = aiResponse.text || "Это замечательное предложение! У нас отличная команда и прозрачные условия.";
+        return res.json({ reply });
+      } catch (err) {
+        console.error("Gemini Error at Consultant Chat, backing up gracefully...", err);
+      }
+    }
+
+    // Dynamic, context-aware smart fallback answers when Gemini is not connected or fails
+    const fallbacks = [
+      `В компании ${companyName} на должности "${roleName}" вам гарантирована оплата ${salaryTerms}. График работы максимально удобный (${scheduleTerms}). У нас дружный коллектив и простое обучение! Попробуем пройти блиц-тестирование?`,
+      `Конечно! Обучение полностью бесплатное и проходит в удобном интерактивном формате. Робот Рекрутер подберет лекции именно по регламентам компании: "${wiki.substring(0, 100)}...". Это займет не больше 15 минут!`,
+      `На должности "${roleName}" ваши обязанности будут соответствовать принятым стандартам. Прохождение собеседования ни к чему вас не обязывает, но даст точную оценку ваших компетенций рекрутером. Попробуйте нажать кнопку "Пройти собеседование"!`,
+      `Условия по оплате (${salaryTerms}) абсолютно честные, выплачиваются без задержек. У нас предусмотрено быстрое ИИ-тестирование, разработавшее индивидуальный план адаптации. Вы безупречно вольетесь в рабочий ритм!`
+    ];
+    
+    // Choose one fallback dynamically based on candidate question keywords
+    let selectedReply = fallbacks[Math.floor(Math.random() * fallbacks.length)];
+    const qLower = (userQuestion || "").toLowerCase();
+    if (qLower.includes("зарплат") || qLower.includes("оплат") || qLower.includes("деньг") || qLower.includes("рубл")) {
+      selectedReply = `По условиям компенсации на позиции "${roleName}": предлагается оклад и бонусы в размере ${salaryTerms}. Это полностью белая и стабильная выплата. Вы сможете влиять на свой доход с первого дня!`;
+    } else if (qLower.includes("график") || qLower.includes("время") || qLower.includes("когда") || qLower.includes("гибрид") || qLower.includes("удален")) {
+      selectedReply = `График работы у нас очень лояльный: ${scheduleTerms}. Мы поддерживаем баланс работы и личной жизни, формат обсуждается индивидуально на финальном собеседовании.`;
+    } else if (qLower.includes("учит") || qLower.includes("обучен") || qLower.includes("знан") || qLower.includes("тест")) {
+      selectedReply = `У нас предусмотрена собственная система мгновенной подготовки! На базе регламентов компании ("${wiki.substring(0, 80)}") ИИ создаст персональный курс с лекциями прямо после экспресс-интервью.`;
+    }
+    
+    res.json({ reply: selectedReply });
+  });
+
+  // Admin APIs: Payments list
+  app.get("/api/admin/payments", (req, res) => {
+    res.json(db.payments);
+  });
+
+  // Admin APIs: Create a mock payment
+  app.post("/api/admin/pay-mock", (req, res) => {
+    const { companyName, amount, itemType, itemName } = req.body;
+    
+    const newPayment = {
+      id: "pay-" + Math.random().toString(36).substr(2, 9),
+      companyName: companyName || "Случайный Работодатель",
+      amount: Number(amount) || 100,
+      itemType: itemType || "interview", // "interview" | "training" | "system_creation"
+      itemName: itemName || "1 ИИ-интервью соискателя",
+      status: "completed",
+      createdAt: new Date().toISOString()
+    };
+
+    db.payments.push(newPayment);
+    res.json(newPayment);
+  });
+
+  // Admin APIs: Delete candidates
+  app.delete("/api/admin/candidates/:id", (req, res) => {
+    const { id } = req.params;
+    const initialLen = db.candidates.length;
+    db.candidates = db.candidates.filter(c => c.id !== id);
+    if (db.candidates.length < initialLen) {
+      res.json({ success: true, message: "Соискатель удалён" });
+    } else {
+      res.status(404).json({ error: "Candidate not found" });
+    }
+  });
+
+  // Admin APIs: Delete projects (employer vacancy setups)
+  app.delete("/api/admin/projects/:id", (req, res) => {
+    const { id } = req.params;
+    const initialLen = db.projects.length;
+    db.projects = db.projects.filter(p => p.id !== id);
+    if (db.projects.length < initialLen) {
+      // Also remove associated candidates
+      db.candidates = db.candidates.filter(c => c.projectId !== id);
+      res.json({ success: true, message: "Проект и связанные кандидаты удалены" });
+    } else {
+      res.status(404).json({ error: "Project not found" });
+    }
   });
 
   // Serve static files and handle SPA fallback for client-side routing

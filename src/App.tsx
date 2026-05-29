@@ -5,9 +5,12 @@
 
 import { RouterProvider, useRouter } from "./components/RouterContext";
 import LandingPage from "./pages/LandingPage";
+import MainCatalogPage from "./pages/MainCatalogPage";
 import AuthPage from "./pages/AuthPage";
 import EmployerPanel from "./pages/EmployerPanel";
 import CandidateFlow from "./pages/CandidateFlow";
+import AdminPanel from "./pages/AdminPanel";
+import JobVacancyLanding from "./pages/JobVacancyLanding";
 
 function AppContent() {
   const { path } = useRouter();
@@ -16,6 +19,12 @@ function AppContent() {
   switch (path) {
     case "/main":
       return <LandingPage />;
+    case "/vacancy":
+      return <MainCatalogPage />;
+    case "/admin":
+      return <AdminPanel />;
+    case "/job":
+      return <JobVacancyLanding />;
     case "/auth":
       return <AuthPage />;
     case "/employer":
