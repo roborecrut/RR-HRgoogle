@@ -580,6 +580,317 @@ ${answersDesc}
     });
   });
 
+  // Specialized API: Evaluate resume (Step 1 of 3)
+  app.post("/api/evaluate-resume", async (req, res) => {
+    const { candidateId, resumeText } = req.body;
+    const candidate = db.candidates.find(c => c.id === candidateId);
+    if (!candidate) return res.status(404).json({ error: "Candidate not found" });
+
+    const project = db.projects.find(p => p.id === candidate.projectId);
+    const aiClient = getGeminiClient();
+
+    let resumeScore = 75;
+    let feedback = "Резюме проанализировано. Соискатель обладает базовыми навыками для данной вакансии. Заявленный опыт соотносится с требованиями роли.";
+
+    if (aiClient) {
+      try {
+        const prompt = `Проанализируй резюме кандидата на должность "${candidate.roleName}" в компанию "${project ? project.companyName : "Работодатель"}".
+Резюме: "${resumeText || "Не указано"}"
+
+Выстави оценку соответствия от 0 до 100 и напиши детальный разбор объемом 2-3 предложения на русском языке.
+Верни ТОЛЬКО JSON:
+{
+  "resumeScore": число_от_0_до_100,
+  "feedback": "разбор резюме"
+}`;
+        const response = await aiClient.models.generateContent({
+          model: "gemini-3.5-flash",
+          contents: prompt,
+          config: { responseMimeType: "application/json", temperature: 0.2 }
+        });
+        const parsed = JSON.parse((response.text || "").trim());
+        if (parsed.resumeScore !== undefined) resumeScore = Number(parsed.resumeScore);
+        if (parsed.feedback) feedback = parsed.feedback;
+      } catch (err) {
+        console.error("Evaluate resume prompt failed, fallbacks applied:", err);
+      }
+    }
+
+    if (!candidate.scores) {
+      candidate.scores = {
+        interviewScore: 70,
+        resumeScore: 70,
+        checklistPoints: 7,
+        roleplayPoints: 7,
+        overallScore: 70,
+        assessmentSummary: ""
+      };
+    }
+    candidate.scores.resumeScore = resumeScore;
+    candidate.resumeText = resumeText;
+
+    res.json({ resumeScore, feedback });
+  });
+
+  // Specialized API: Evaluate checklist (Step 2 of 3)
+  app.post("/api/evaluate-checklist", async (req, res) => {
+    const { candidateId, answers } = req.body; 
+    const candidate = db.candidates.find(c => c.id === candidateId);
+    if (!candidate) return res.status(404).json({ error: "Candidate not found" });
+
+    const aiClient = getGeminiClient();
+    let checklistScore = 80;
+    let feedback = "Ответы на профессиональные вопросы чек-листа приняты. Кандидат показал хорошие базовые теоретические знания.";
+
+    if (aiClient) {
+      try {
+        const prompt = `Проанализируй ответы кандидата на профессиональные вопросы чек-листа по специальности "${candidate.roleName}".
+Ответы кандидата:
+${answers.map((a: any, i: number) => `${i+1}. Вопрос: ${a.question}\nОтвет: ${a.answer}`).join("\n")}
+
+Оцени теоретическую подготовку соискателя от 0 до 100 баллов и дай краткий анализ на русском языке (2-3 предложения).
+Верни ТОЛЬКО JSON:
+{
+  "checklistScore": число_от_0_до_100,
+  "feedback": "текст анализа"
+}`;
+        const response = await aiClient.models.generateContent({
+          model: "gemini-3.5-flash",
+          contents: prompt,
+          config: { responseMimeType: "application/json", temperature: 0.2 }
+        });
+        const parsed = JSON.parse((response.text || "").trim());
+        if (parsed.checklistScore !== undefined) checklistScore = Number(parsed.checklistScore);
+        if (parsed.feedback) feedback = parsed.feedback;
+      } catch (err) {
+        console.error("Evaluate checklist failed:", err);
+      }
+    }
+
+    if (!candidate.scores) {
+      candidate.scores = {
+        interviewScore: 70,
+        resumeScore: 70,
+        checklistPoints: 7,
+        roleplayPoints: 7,
+        overallScore: 70,
+        assessmentSummary: ""
+      };
+    }
+    candidate.scores.checklistScore = checklistScore;
+    candidate.scores.checklistPoints = Math.round(checklistScore / 10);
+
+    res.json({ checklistScore, feedback });
+  });
+
+  // Specialized API: Evaluate situations (Step 3 of 3) and calculate final overall score
+  app.post("/api/evaluate-situations", async (req, res) => {
+    const { candidateId, answers } = req.body; 
+    const candidate = db.candidates.find(c => c.id === candidateId);
+    if (!candidate) return res.status(404).json({ error: "Candidate not found" });
+
+    const project = db.projects.find(p => p.id === candidate.projectId);
+    const aiClient = getGeminiClient();
+
+    let situationsScore = 78;
+    let feedback = "Практические кейсы по ролевой игре пройдены успешно. Кандидат умеет быстро ориентироваться в рабочих ситуациях.";
+
+    if (aiClient) {
+      try {
+        const prompt = `Проанализируй ролевые ответы кандидата на 3 практические ситуации по специальности "${candidate.roleName}".
+Ответы кандидата:
+${answers.map((a: any, i: number) => `Кейс ${i+1}: "${a.question}"\nОтвет: "${a.answer}"`).join("\n\n")}
+
+Оцени практические навыки соискателя от 0 до 100 баллов и дай краткий анализ на русском языке (2-3 предложения).
+Верни ТОЛЬКО JSON:
+{
+  "situationsScore": число_от_0_до_100,
+  "feedback": "анализ кейсов"
+}`;
+        const response = await aiClient.models.generateContent({
+          model: "gemini-3.5-flash",
+          contents: prompt,
+          config: { responseMimeType: "application/json", temperature: 0.2 }
+        });
+        const parsed = JSON.parse((response.text || "").trim());
+        if (parsed.situationsScore !== undefined) situationsScore = Number(parsed.situationsScore);
+        if (parsed.feedback) feedback = parsed.feedback;
+      } catch (err) {
+        console.error("Evaluate situations failed:", err);
+      }
+    }
+
+    if (!candidate.scores) {
+      candidate.scores = {
+        interviewScore: 70,
+        resumeScore: 70,
+        checklistPoints: 7,
+        roleplayPoints: 7,
+        overallScore: 70,
+        assessmentSummary: ""
+      };
+    }
+    candidate.scores.situationsScore = situationsScore;
+    candidate.scores.roleplayPoints = Math.round(situationsScore / 10);
+
+    // Calculate final scores
+    const rScore = candidate.scores.resumeScore || 70;
+    const cScore = candidate.scores.checklistScore || 75;
+    const sScore = situationsScore;
+    const overallScore = Math.round((rScore + cScore + sScore) / 3);
+
+    candidate.scores.interviewScore = Math.round((cScore + sScore) / 2);
+    candidate.scores.overallScore = overallScore;
+    candidate.scores.assessmentSummary = `Анализ резюме: ${candidate.resumeText ? "Резюме исследовано и оценено на " + rScore + " баллов." : "Резюме не прикреплено."} \nТеоретический чек-лист: Оценен на ${cScore} баллов. \nКейс-тренажер: Сдан на ${situationsScore} баллов. Кандидат готов к обучению.`;
+
+    candidate.currentStage = "scoring";
+
+    // Auto-generate personal training plan immediately using Gemini
+    let trainingPlan: any[] = [];
+    if (aiClient) {
+      try {
+        const trainingPrompt = `Создай индивидуальный план онбординга и обучения для кандидата на вакансию "${candidate.roleName}" в "${project ? project.companyName : "Работодатель"}".
+Оценка ИИ: ${candidate.scores.assessmentSummary}
+Вики/Продукты компании: ${project?.customWiki || "Нет деталей"}
+
+Обучение должно состоять строго из трех блоков (Training Blocks), каждый из которых содержит ровно по 1 микро-уроку с 1 вопросом теста:
+Блок 1: "Профессиональное обучение" (подтянуть выявленные слабые навыки)
+Блок 2: "Обучение продукту" (о продуктах компании, ценностях и мотивации)
+Блок 3: "Обучение процессам и мотивации" (инструкции, рабочие регламенты и мотивационные процессы)
+
+Верни строго JSON объект с учебным планом в структуре:
+[
+  {
+    "title": "Профессиональное обучение",
+    "description": "Описание фокуса обучения...",
+    "lessons": [
+      {
+        "id": "prof_1",
+        "title": "Тема урока...",
+        "content": "Детальное обучающее содержание урока (5-7 содержательных предложений), объясняющее теорию и практику.",
+        "quiz": {
+          "question": "Вопрос для проверки знаний",
+          "options": ["Опция 1", "Опция 2", "Опция 3"],
+          "answerIndex": 0
+        },
+        "isCompleted": false
+      }
+    ]
+  },
+  {
+    "title": "Обучение продукту",
+    "description": "Описание товаров/услуг и ценности...",
+    "lessons": [
+      {
+        "id": "prod_1",
+        "title": "Тема урока...",
+        "content": "Содержание урока вежливо и подробно...",
+        "quiz": {
+          "question": "Вопрос для проверки",
+          "options": ["Опция 1", "Опция 2", "Опция 3"],
+          "answerIndex": 1
+        },
+        "isCompleted": false
+      }
+    ]
+  },
+  {
+    "title": "Обучение процессам и мотивации",
+    "description": "Процедуры и регламенты работы...",
+    "lessons": [
+      {
+        "id": "proc_1",
+        "title": "Тема урока...",
+        "content": "Инструкции и KPI сотрудника...",
+        "quiz": {
+          "question": "Вопрос для проверки",
+          "options": ["Опция A", "Опция Б", "Опция В"],
+          "answerIndex": 2
+        },
+        "isCompleted": false
+      }
+    ]
+  }
+]`;
+        const responseTr = await aiClient.models.generateContent({
+          model: "gemini-3.5-flash",
+          contents: trainingPrompt,
+          config: { responseMimeType: "application/json", temperature: 0.3 }
+        });
+        trainingPlan = JSON.parse((responseTr.text || "").trim());
+      } catch (err) {
+        console.error("Gemini training plan inside evaluate-situations failed, static plan substituted:", err);
+      }
+    }
+
+    if (!trainingPlan || trainingPlan.length === 0) {
+      trainingPlan = [
+        {
+          title: "Профессиональное обучение",
+          description: "Навыки необходимые для роли " + candidate.roleName,
+          lessons: [
+            {
+              id: "prof_v",
+              title: "Повышение эффективности коммуникаций",
+              content: "Эффективная работа требует высокой вовлеченности в задачи компании. Будьте вежливы, изучайте потребности клиента и давайте исчерпывающие и аргументированные ответы.",
+              quiz: {
+                question: "Что является основой эффективной работы сотрудника?",
+                options: ["Простое присутствие на рабочем месте", "Качественное и проактивное решение задач клиента", "Игнорирование регламентов"],
+                answerIndex: 1
+              },
+              isCompleted: false
+            }
+          ]
+        },
+        {
+          title: "Обучение продукту",
+          description: "Изучение внутренних регламентов компании " + (project ? project.companyName : "Работодатель"),
+          lessons: [
+            {
+              id: "prod_v",
+              title: "Наш продукт и его превосходство",
+              content: "Наш продукт закрывает ключевую потребность рынка в экономии времени и бюджетов. Вся база знаний находится во внутреннем Wiki-разделе.",
+              quiz: {
+                question: "Что является ключевой ценностью нашего продукта?",
+                options: ["Дешевизна изготовления", "Экономия времени клиентов", "Просто нахождение на рынке"],
+                answerIndex: 1
+              },
+              isCompleted: false
+            }
+          ]
+        },
+        {
+          title: "Обучение процессам и мотивации",
+          description: "Ознакомление с внутренними CRM регламентами",
+          lessons: [
+            {
+              id: "proc_v",
+              title: "Ежедневная активность и KPI",
+              content: "Каждый сотрудник еженедельно предоставляет отчетность в CRM. Основными показателями качества являются соблюдение стандартов вежливого общения и скорость обслуживания.",
+              quiz: {
+                question: "Как часто сдается отчетность по KPI?",
+                options: ["Раз в год", "Раз в месяц", "Раз в неделю"],
+                answerIndex: 2
+              },
+              isCompleted: false
+            }
+          ]
+        }
+      ];
+    }
+
+    candidate.trainingPlan = trainingPlan;
+
+    res.json({
+      overallScore,
+      resumeScore: rScore,
+      checklistScore: cScore,
+      situationsScore: sScore,
+      assessmentSummary: candidate.scores.assessmentSummary,
+      trainingPlan
+    });
+  });
+
   // AI-Powered / Dynamic Consultant Chatbot for Candidate Vacancy Landing
   app.post("/api/vacancy-consultant-chat", async (req, res) => {
     const { projectId, messages, userQuestion } = req.body;
@@ -690,6 +1001,65 @@ ${answersDesc}
     } else {
       res.status(404).json({ error: "Project not found" });
     }
+  });
+
+  // Assistant for Candidates in candidate dashboard
+  app.post("/api/candidate-assist", async (req, res) => {
+    const { candidateId, userQuestion, contextTab, contextSubTab } = req.body;
+    const candidate = db.candidates.find(c => c.id === candidateId) || db.candidates[0];
+    const project = candidate ? db.projects.find(p => p.id === candidate.projectId) : db.projects[0];
+
+    const companyName = project?.companyName || "Работодатель";
+    const roleName = project?.roleName || "Специалист";
+    const salaryTerms = project?.salaryTerms || "Компенсационный пакет";
+    const scheduleTerms = project?.scheduleTerms || "Индивидуальный график";
+    const wiki = project?.customWiki || "Обучение в компании";
+
+    const aiClient = getGeminiClient();
+    if (aiClient) {
+      try {
+        const prompt = `Ты — Дружелюбный ИИ-Помощник соискателя на платформе "Робот Рекрутер (RR)".\n` +
+          `Твоя работа — отвечать соискателю на любые его вопросы по вакансии, помогать проходить собеседование, разъяснять условия, подсказывать ответы на обучение и подбадривать!\n\n` +
+          `ТЕКУЩИЙ СОИСКАТЕЛЬ:\n` +
+          `- Имя: ${candidate?.name || "Иван"}\n` +
+          `- Должность: ${roleName}\n` +
+          `- Компания: ${companyName}\n` +
+          `- Условия оплаты: ${salaryTerms}\n` +
+          `- График: ${scheduleTerms}\n` +
+          `- Вики-база знаний: ${wiki}\n` +
+          `- Уверенность: Общий балл по итогу собеседования составляет ${candidate?.scores?.overallScore || "не пройдено еще"}\n\n` +
+          `КОНТЕКСТ ЭКРАНА:\n` +
+          `- Основной таб: ${contextTab}\n` +
+          `- Подтаб (если есть): ${contextSubTab || "нет"}\n\n` +
+          `Вопрос соискателя: "${userQuestion}"\n\n` +
+          `Сформулируй дружелюбный, воодушевляющий и очень краткий ответ на русском языке (максимум 2-3 предложения), помогающий соискателю. Дай дельный совет!`;
+
+        const aiResponse = await aiClient.models.generateContent({
+          model: "gemini-3.5-flash",
+          contents: prompt,
+        });
+
+        const reply = aiResponse.text || "Я готов тебе помочь! Давай вместе изучим этот раздел.";
+        return res.json({ reply });
+      } catch (err) {
+        console.error("Gemini Error at Candidate Assist Chat, backing up gracefully...", err);
+      }
+    }
+
+    // fallback answers based on keywords
+    const qLower = (userQuestion || "").toLowerCase();
+    let selectedReply = `Привет, ${candidate?.name || "коллега"}! Я твой ИИ-Помощник. Данный раздел (${contextTab} > ${contextSubTab || ""}) очень важен. Спрашивай меня обо всем, что вызывает вопросы!`;
+    if (qLower.includes("зарплат") || qLower.includes("оплат") || qLower.includes("деньг") || qLower.includes("рубл")) {
+      selectedReply = `По условиям выплаты в ${companyName}: На позиции "${roleName}" оплата составляет ${salaryTerms}. Выплаты стабильные и своевременные. Есть ли еще вопросы по оформлению?`;
+    } else if (qLower.includes("график") || qLower.includes("время") || qLower.includes("когда")) {
+      selectedReply = `Установленный график работы на вакансии "${roleName}": ${scheduleTerms}. Это отличный вариант, обеспечивающий баланс работы и личной жизни!`;
+    } else if (qLower.includes("тест") || qLower.includes("пройт") || qLower.includes("вопрос") || qLower.includes("ответ")) {
+      selectedReply = `Не волнуйся, наше ИИ-тестирование составлено дружелюбно. В разделе "Собеседование" ты сможешь ответить на вопросы, а в "Оценке" - увидеть подробные баллы. Я всегда рядом, чтобы подсказать!`;
+    } else if (qLower.includes("компани") || qLower.includes("продукт")) {
+      selectedReply = `Компания ${companyName} занимается разработкой инновационных решений, а именно проектами вида "${wiki.substring(0, 50)}...". Это великолепный шанс поработать в сильном сегменте!`;
+    }
+    
+    res.json({ reply: selectedReply });
   });
 
   // Serve static files and handle SPA fallback for client-side routing

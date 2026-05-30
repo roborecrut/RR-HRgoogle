@@ -15,6 +15,10 @@ import JobVacancyLanding from "./pages/JobVacancyLanding";
 function AppContent() {
   const { path } = useRouter();
 
+  if (path.startsWith("/candidate")) {
+    return <CandidateFlow />;
+  }
+
   // Simple state routing map
   switch (path) {
     case "/main":
@@ -30,8 +34,6 @@ function AppContent() {
     case "/employer":
     case "/setup":
       return <EmployerPanel />;
-    case "/candidate":
-      return <CandidateFlow />;
     default:
       // Default fallback
       return <LandingPage />;

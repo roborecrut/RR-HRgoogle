@@ -22,11 +22,159 @@ import {
   HelpCircle,
   X,
   ExternalLink,
-  Menu
+  Menu,
+  User,
+  MessageSquare,
+  Building,
+  Clock,
+  Coins,
+  Users,
+  ShieldCheck,
+  Sparkles,
+  RefreshCw
 } from "lucide-react";
 
+const get20ChecklistQuestions = (role: string) => {
+  const normRole = (role || "").toLowerCase();
+  if (normRole.includes("продаж") || normRole.includes("торгов") || normRole.includes("клиент")) {
+    return [
+       "Оцените ваш опыт в активных продажах (в годах)",
+       "Работали ли вы с возражениями 'дорого', 'не интересно'?",
+       "Какими CRM-системами владеете на уровне уверенного пользователя?",
+       "Опишите ваш рекорд по сумме закрытой сделки за один месяц",
+       "Как вы определяете ЛПР (Лицо, принимающее решения) в компании?",
+       "Какой средний чек сделок был на вашем предыдущем месте?",
+       "Опыт ведения 'холодных' звонков (да/нет, сколько в день)",
+       "Умеете ли вы работать с воронками продаж?",
+       "Как вы реагируете на отказы клиентов по телефону?",
+       "Опыт подготовки коммерческих предложений (КП)",
+       "Знакомы ли вы с техникой продаж СПИН?",
+       "Как быстро вы обычно устанавливаете контакт с незнакомым клиентом?",
+       "Владеете ли вы навыками допродаж (cross-sell / up-sell)?",
+       "Опыт участия в тендерах или госзакупках",
+       "Какие ключевые метрики KPI у вас стояли ранее?",
+       "Готовы ли вы делать не менее 45 звонков в день?",
+       "Сталкивались ли вы с выгоранием в продажах, как справлялись?",
+       "Опыт проведения личных/презентационных встреч с клиентами",
+       "Знание телефонного этикета и грамотность устной речи",
+       "Почему именно сфера продаж привлекает вас больше всего?"
+    ];
+  } else if (normRole.includes("разработ") || normRole.includes("it") || normRole.includes("програм") || normRole.includes("аналитик") || normRole.includes("тестир")) {
+    return [
+       "Основной стек технологий (языки, фреймворки)",
+       "Общий стаж коммерческой разработки/анализа (в годах)",
+       "Опыт работы в Agile/Scrum командах",
+       "Какими системами контроля версий (Git) вы пользуетесь?",
+       "Опишите самый технически сложный проект в вашей карьере",
+       "Опыт написания юнит-тестов (Unit tests)",
+       "Как вы относитесь к код-ревью (code review)?",
+       "Опыт работы со СУБД (PostgreSQL, MySQL, NoSQL)",
+       "Использовали ли вы брокеры сообщений (Kafka, RabbitMQ)?",
+       "Знакомы ли вы с архитектурными паттернами (MVC, Clean, Microservices)?",
+       "Использовали ли вы Docker или Kubernetes в проектах?",
+       "Каким планировщиком задач пользовались (Jira, Trello, Kaiten)?",
+       "Опыт работы с REST API или GraphQL",
+       "Разрабатывали ли вы автоматизированные скрипты миграции данных?",
+       "Как вы оцениваете трудоемкость новых задач (Story Points, часы)?",
+       "Умеете ли вы документировать написанный код (Swagger, JSDoc)?",
+       "Опыт проведения рефакторинга устаревшего кода",
+       "Приходилось ли вам работать с legacy-кодом, какие сложности были?",
+       "Уровень владения английским языком для чтения документации",
+       "Как вы следите за новыми трендами в вашей ИТ-специальности?"
+    ];
+  } else {
+    return [
+       "Общий опыт работы на аналогичной должности (в годах)",
+       "Ваши ключевые должностные обязанности на прошлом месте",
+       "Какое программное обеспечение вы используете повседневно?",
+       "Опишите ваше самое главное достижение на предыдущей работе",
+       "Каким образом вы планируете свой рабочий день?",
+       "Умеете ли вы работать в команде над общими KPI?",
+       "Как вы решаете спорные ситуации с коллегами?",
+       "Готовы ли вы к интенсивному обучению в первые две недели?",
+       "Опыт работы с отчетностью и документооборотом",
+       "Какие навыки считаете своими сильными сторонами?",
+       "В чем видите свои зоны роста (слабые стороны)?",
+       "Как вы справляетесь с многозадачностью?",
+       "Опыт ведения деловой переписки и электронной почты",
+       "Знакомы ли вы с регламентами информационной безопасности?",
+       "Занимались ли вы наставничеством или помощью новичкам?",
+       "Как вы относитесь к регулярному контролю качества со стороны руководства?",
+       "Какие ожидания у вас от корпоративной культуры нашей компании?",
+       "Ваша готовность к работе в режиме высокой ответственности",
+       "Какие профессиональные курсы вы проходили за последний год?",
+       "Почему вы хотите работать именно на этой позиции у нас?"
+    ];
+  }
+};
+
+const getSmartDefaultAnswer = (q: string, role: string): string => {
+  const qLower = q.toLowerCase();
+  if (qLower.includes("опыт в активных") || qLower.includes("опыт работы на")) {
+    return "Более 3 лет успешного коммерческого опыта в данной сфере.";
+  }
+  if (qLower.includes("стек технологий")) {
+    return "React, TypeScript, Node.js, Express, PostgreSQL, TailwindCSS, Git.";
+  }
+  if (qLower.includes("возражени") || qLower.includes("отказы")) {
+    return "Отношусь конструктивно. Выслушиваю клиента, соглашаюсь с его правом на сомнение, перевожу разговор на ценность и выгоду продукта.";
+  }
+  if (qLower.includes("crm")) {
+    return "Уверенно владею amoCRM, Bitrix24, Jira, фиксирую все этапы движения лида и ставлю напоминания.";
+  }
+  if (qLower.includes("рекорд по сумме") || qLower.includes("когда-либо")) {
+    return "Закрыл крупный контракт на поставку ПО на сумму 1.2 млн рублей за один календарный месяц.";
+  }
+  if (qLower.includes("лпр")) {
+    return "Через секретарей и выявление болей выхожу на ЛПР, задаю квалифицирующие вопросы напрямую руководителю.";
+  }
+  if (qLower.includes("средний чек")) {
+    return "Средний чек сделок составлял около 75,000 рублей.";
+  }
+  if (qLower.includes("холодн") || qLower.includes("звонков")) {
+    return "Да, есть большой опыт холодных звонков. Стабильно делал около 40-50 звонков в день на этапе разгона базы.";
+  }
+  if (qLower.includes("воронка") || qLower.includes("воронками")) {
+    return "Конечно. Знаю, как конвертировать лиды из этапа 'первичный интерес' в 'согласование договора' и минимизировать потери.";
+  }
+  if (qLower.includes("коммерческих предложений") || qLower.includes("rest api")) {
+    return "Регулярно составлял индивидуальные коммерческие предложения под боли конкретного клиента.";
+  }
+  if (qLower.includes("спин") || qLower.includes("git")) {
+    return "Да, использую ситуационные, проблемные, извлекающие и направляющие вопросы для поиска скрытых потребностей.";
+  }
+  if (qLower.includes("быстро") || qLower.includes("контакт")) {
+    return "Сразу проявляю вежливость, улыбку в голосе, называю по имени и держу уверенный профессиональный тон.";
+  }
+  if (qLower.includes("допродаж") || qLower.includes("cross-sell")) {
+    return "Предлагаю расширенную гарантию, дополнительные модули или сопутствующие обучающие услуги.";
+  }
+  if (qLower.includes("тендерах") || qLower.includes("docker")) {
+    return "Имею базовое понимание процессов и регламентов участия на электронных торговых площадках.";
+  }
+  if (qLower.includes("kpi") || qLower.includes("метрики")) {
+    return "Основные показатели: объем продаж, количество звонков, средняя длина сделки и отзывы клиентов.";
+  }
+  if (qLower.includes("готовы ли") || qLower.includes("согласны")) {
+    return "Да, абсолютно готов. Понимаю, что на старте необходима максимальная вовлеченность.";
+  }
+  if (qLower.includes("выгоранием") || qLower.includes("многозадачностью")) {
+    return "Переключаю фокус внимания, занимаюсь спортом и четко планирую рабочие задачи по приоритетам.";
+  }
+  if (qLower.includes("встреч") || qLower.includes("презентацион")) {
+    return "Да, проводил онлайн-демонстрации продукта в Zoom и личные встречи на территории заказчика.";
+  }
+  if (qLower.includes("этикет") || qLower.includes("английским")) {
+    return "Владею деловым этикетом, грамотно пишу коммерческие предложения и легко нахожу общий язык.";
+  }
+  if (qLower.includes("почему") || qLower.includes("привлекает")) {
+    return "Мне нравится помогать людям решать их проблемы с помощью качественного продукта и зарабатывать на этом.";
+  }
+  return "Имею высокий уровень профессионализма, быстро изучаю новую информацию и стремлюсь выполнять плановые показатели.";
+};
+
 export default function CandidateFlow() {
-  const { navigate } = useRouter();
+  const { path, navigate } = useRouter();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   // Active state ids
@@ -35,6 +183,149 @@ export default function CandidateFlow() {
 
   // Flow navigation stage index: "terms" | "interview" | "scoring" | "training" | "certified"
   const [currentStage, setCurrentStage] = useState<string>("terms");
+
+  // Main navigation tab
+  const [activeTab, setActiveTabState] = useState<string>("profile");
+  
+  // Sub-tabs for "Условия"
+  const [termsSubTab, setTermsSubTabState] = useState<string>("vacancy");
+
+  // Sub-tabs for "ИИ обучение"
+  const [trainingSubTab, setTrainingSubTabState] = useState<string>("professional");
+
+  // Sub-tabs for "Интервью"
+  const [interviewSubTab, setInterviewSubTabState] = useState<string>("resume");
+
+  const setActiveTab = (tabId: string) => {
+    setActiveTabState(tabId);
+    if (tabId === "terms") {
+      navigate(`/candidate/terms/${termsSubTab}`);
+    } else if (tabId === "training") {
+      navigate(`/candidate/training/${trainingSubTab}`);
+    } else if (tabId === "interview") {
+      navigate(`/candidate/interview/${interviewSubTab}`);
+    } else {
+      navigate(`/candidate/${tabId}`);
+    }
+  };
+
+  const setTermsSubTab = (subTabId: string) => {
+    setTermsSubTabState(subTabId);
+    navigate(`/candidate/terms/${subTabId}`);
+  };
+
+  const setTrainingSubTab = (subTabId: string) => {
+    setTrainingSubTabState(subTabId);
+    navigate(`/candidate/training/${subTabId}`);
+  };
+
+  const setInterviewSubTab = (subTabId: string) => {
+    setInterviewSubTabState(subTabId);
+    navigate(`/candidate/interview/${subTabId}`);
+  };
+
+  // Sync URL subpath to activeTab, termsSubTab and trainingSubTab states
+  useEffect(() => {
+    const parts = path.split("/").filter(Boolean);
+    if (parts[0] === "candidate") {
+      const activeTabFromUrl = parts[1] || "profile";
+      if (activeTabFromUrl !== activeTab) {
+        setActiveTabState(activeTabFromUrl);
+      }
+      
+      if (activeTabFromUrl === "terms") {
+        const subpath = parts[2] || "vacancy";
+        if (subpath !== termsSubTab) {
+          setTermsSubTabState(subpath);
+        }
+      } else if (activeTabFromUrl === "training") {
+        const subpath = parts[2] || "professional";
+        if (subpath !== trainingSubTab) {
+          setTrainingSubTabState(subpath);
+        }
+      } else if (activeTabFromUrl === "interview") {
+        const subpath = parts[2] || "resume";
+        if (subpath !== interviewSubTab) {
+          setInterviewSubTabState(subpath);
+        }
+      }
+    }
+  }, [path, activeTab, termsSubTab, trainingSubTab, interviewSubTab]);
+
+  // Floating AI Assistant states
+  const [assistOpen, setAssistOpen] = useState(false);
+  const [assistTextInput, setAssistTextInput] = useState("");
+  const [assistHistory, setAssistHistory] = useState<{ sender: "ai" | "user", text: string }[]>([
+    { sender: "ai", text: "Привет! Я твой ИИ Робот-Помощник. Спрашивай меня обо всем — о регламентах, вакансии, графике, выплатах или обучении! 😊" }
+  ]);
+  const [assistLoading, setAssistLoading] = useState(false);
+
+  const handleSendAssist = async () => {
+    if (!assistTextInput.trim()) return;
+    const userText = assistTextInput;
+    setAssistHistory(prev => [...prev, { sender: "user", text: userText }]);
+    setAssistTextInput("");
+    setAssistLoading(true);
+
+    try {
+      const res = await fetch("/api/candidate-assist", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          candidateId: candidate?.id || "cand-1",
+          userQuestion: userText,
+          contextTab: activeTab,
+          contextSubTab: activeTab === "terms" ? termsSubTab : (activeTab === "training" ? trainingSubTab : "")
+        })
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setAssistHistory(prev => [...prev, { sender: "ai", text: data.reply }]);
+      } else {
+        setAssistHistory(prev => [...prev, { sender: "ai", text: "Прошу прощения, произошла небольшая ошибка. Давайте попробуем еще раз!" }]);
+      }
+    } catch (err) {
+      console.error(err);
+      setAssistHistory(prev => [...prev, { sender: "ai", text: "Не удалось отправить сообщение. Пожалуйста, проверьте интернет-соединение." }]);
+    } finally {
+      setAssistLoading(false);
+    }
+  };
+
+  // Profile management edit states
+  const [editingProfile, setEditingProfile] = useState(false);
+  const [profName, setProfName] = useState("");
+  const [profEmail, setProfEmail] = useState("");
+  const [profTelegram, setProfTelegram] = useState("");
+  const [saveProfileMsg, setSaveProfileMsg] = useState("");
+  const [certSavedMsg, setCertSavedMsg] = useState("");
+
+  const handleSaveProfile = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!candidate) return;
+
+    try {
+      const res = await fetch(`/api/candidates/${candidate.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: profName,
+          email: profEmail,
+          telegramUsername: profTelegram
+        })
+      });
+
+      if (res.ok) {
+        const updated = await res.json();
+        setCandidate(updated);
+        setEditingProfile(false);
+        setSaveProfileMsg("✅ Данные профиля успешно сохранены!");
+        setTimeout(() => setSaveProfileMsg(""), 3000);
+      }
+    } catch (err) {
+      console.error(err);
+    }
+  };
 
   // Load candidate session from localStorage
   const loadSession = async () => {
@@ -55,6 +346,30 @@ export default function CandidateFlow() {
       if (activeCand) {
         setCandidate(activeCand);
         setCurrentStage(activeCand.currentStage || "terms");
+        const parts = window.location.pathname.split("/").filter(Boolean);
+        if (parts[0] === "candidate" && parts[1]) {
+          setActiveTabState(parts[1]);
+          if (parts[1] === "terms" && parts[2]) {
+            setTermsSubTabState(parts[2]);
+          } else if (parts[1] === "training" && parts[2]) {
+            setTrainingSubTabState(parts[2]);
+          }
+        } else {
+          const targetTab = activeCand.currentStage || "profile";
+          setActiveTabState(targetTab);
+          if (targetTab === "terms") {
+            navigate(`/candidate/terms/vacancy`);
+          } else if (targetTab === "training") {
+            navigate(`/candidate/training/professional`);
+          } else {
+            navigate(`/candidate/${targetTab}`);
+          }
+        }
+
+        // Set editing initial fields
+        setProfName(activeCand.name || "");
+        setProfEmail(activeCand.email || "");
+        setProfTelegram(activeCand.telegramUsername || "");
 
         // Fetch corresponding project details
         const resProj = await fetch(`/api/projects/${activeCand.projectId}`);
@@ -96,119 +411,250 @@ export default function CandidateFlow() {
     }
   };
 
-  // Stage 1 -> Stage 2 (Interviewing)
-  const handleStartInterview = () => {
-    initiateInterviewChat();
-    updateStageOnBackend("interview");
-  };
-
-  // --- STAGE 2: CHAT INTERVIEW RECRUITMENT LOGIC ---
-  const [chatMessages, setChatMessages] = useState<Message[]>([]);
-  const [userTextInput, setUserTextInput] = useState("");
-  const [currentQuestionIdx, setCurrentQuestionIdx] = useState(0);
-  const [candidateResponseCollection, setCandidateResponseCollection] = useState<{question: string, answer: string}[]>([]);
+  // --- STAGE 2: 3-STEP INTEGRATED INTERVIEW AND SCORING STAGE ---
+  const [resumeAnalysing, setResumeAnalysing] = useState(false);
+  const [resumeFeedback, setResumeFeedback] = useState("");
   
-  // File upload state for Resume
+  const [checklistAnalysing, setChecklistAnalysing] = useState(false);
+  const [checklistFeedback, setChecklistFeedback] = useState("");
+  
+  const [situationsAnalysing, setSituationsAnalysing] = useState(false);
+  
+  // 20 Checklist questions state
+  const [checklistAnswers, setChecklistAnswers] = useState<{ question: string; answer: string }[]>([]);
+
+  // 3 situational cases
+  const [situationsList, setSituationsList] = useState<any[]>([]);
+  const [activeSitIdx, setActiveSitIdx] = useState(0);
+  const [activeSitTextInput, setActiveSitTextInput] = useState("");
+  const [sitEvaluatingId, setSitEvaluatingId] = useState<string | null>(null);
+
+  // Resume Drag & Drop Usability handling
   const [resumeFile, setResumeFile] = useState<File | null>(null);
   const [resumeTextEntry, setResumeTextEntry] = useState("Имеется высшее образование, 3 года успешных продаж в ИТ-компании, владею amoCRM, навыки активного ведения переговоров.");
   const [isDragOver, setIsDragOver] = useState(false);
   const [attachmentUploaded, setAttachmentUploaded] = useState(false);
 
-  const chatEndRef = useRef<HTMLDivElement>(null);
-
-  // Initialize chat questions compiled from project
-  const initiateInterviewChat = () => {
-    const qList = project ? [...project.checklistQuestions, ...project.roleplayQuestions] : [
-      "Каков ваш профессиональный опыт на аналогичной должности?",
-      "Смоделируйте как вы улаживаете конфликт с недовольным заказчиком?"
-    ];
-
-    setChatMessages([
-      {
-        sender: "recruiter",
-        text: `Приветствую вас! Мое имя Робот Рекрутер RR. 🤖 Проведем интервью на должность: ${project?.roleName || "Специалист"}. Для детального изучения прикрепите ваше резюме PDF/DOC в форму слева, либо впишите данные о ваших навыках.\n\nДавайте начнем с первого вопроса:\n📌 ${qList[0]}`,
-        timestamp: new Date().toLocaleTimeString()
+  // Helper inside CandidateFlow to refresh Candidate session
+  const refreshCandidate = async () => {
+    if (!candidate) return;
+    try {
+      const res = await fetch(`/api/candidates`);
+      const list = await res.json();
+      const current = list.find((c: any) => c.id === candidate.id);
+      if (current) {
+        setCandidate(current);
+        setCurrentStage(current.currentStage || "terms");
       }
-    ]);
-    setCurrentQuestionIdx(0);
-  };
-
-  const handleSendMessage = () => {
-    if (!userTextInput.trim()) return;
-
-    const qList = project ? [...project.checklistQuestions, ...project.roleplayQuestions] : [
-      "Каков ваш профессиональный опыт на аналогичной должности?",
-      "Смоделируйте как вы улаживаете конфликт с недовольным заказчиком?"
-    ];
-
-    // Save answer
-    const currentQuestion = qList[currentQuestionIdx];
-    const newAnswers = [...candidateResponseCollection, { question: currentQuestion, answer: userTextInput }];
-    setCandidateResponseCollection(newAnswers);
-
-    const userMsg: Message = {
-      sender: "candidate",
-      text: userTextInput,
-      timestamp: new Date().toLocaleTimeString()
-    };
-
-    setChatMessages(prev => [...prev, userMsg]);
-    setUserTextInput("");
-
-    // Scroll chat down
-    setTimeout(() => chatEndRef.current?.scrollIntoView({ behavior: "smooth" }), 100);
-
-    const nextIdx = currentQuestionIdx + 1;
-    if (nextIdx < qList.length) {
-      setTimeout(() => {
-        const systemReply: Message = {
-          sender: "recruiter",
-          text: `Спасибо, ответ записан.\n\nСледующий вопрос:\n📌 ${qList[nextIdx]}`,
-          timestamp: new Date().toLocaleTimeString()
-        };
-        setChatMessages(prev => [...prev, systemReply]);
-        setCurrentQuestionIdx(nextIdx);
-        setTimeout(() => chatEndRef.current?.scrollIntoView({ behavior: "smooth" }), 100);
-      }, 1000);
-    } else {
-      // Conduct final evaluation
-      setTimeout(async () => {
-        const finalWaitReply: Message = {
-          sender: "recruiter",
-          text: `🎉 Все вопросы пройдены! Начинаю ИИ-анализ ваших ответов и резюме. Робот рассчитывает баллы соответствия и конструирует индивидуальный план обучения... Пожалуйста, подождите.`,
-          timestamp: new Date().toLocaleTimeString()
-        };
-        setChatMessages(prev => [...prev, finalWaitReply]);
-        setTimeout(() => chatEndRef.current?.scrollIntoView({ behavior: "smooth" }), 100);
-
-        // Submit to backend evaluation
-        await triggerEvaluateAndOnboard(newAnswers);
-      }, 1000);
+    } catch (e) {
+      console.error("Error refreshing candidate:", e);
     }
   };
 
-  // Evaluate candidate
-  const triggerEvaluateAndOnboard = async (answers: any[]) => {
-    if (!candidate) return;
+  // Run initialisers for the 20 checklist questions and 3 situations
+  const initSituations = (role: string) => {
+    const sit1 = {
+      id: "sit_1",
+      title: "Кейс 1: Работа с возражениями 'Дорого'",
+      desc: "Клиент говорит: 'У ваших конкурентов аналогичное решение стоит на 30% дешевле, не вижу смысла платить больше'.",
+      botPrompt: "Я ухожу к конкурентам. Почему я должен переплачивать вам за то же самое?",
+      transcript: [
+        { sender: "bot", text: "Я ухожу к конкурентам. Почему я должен переплачивать вам за то же самое?" }
+      ] as { sender: "bot" | "user", text: string }[],
+      score: 0,
+      feedback: "",
+      submitted: false,
+    };
+    const sit2 = {
+      id: "sit_2",
+      title: "Кейс 2: Требование невозможного дедлайна",
+      desc: "Руководитель требует внести критическое изменение в проект к сегодняшнему вечеру, хотя на это требуется минимум три дня.",
+      botPrompt: "Мне все равно на технические сложности! Запуск сегодня вечером, иначе мы сорвем контракт с партнером и виноваты будете вы. Сделаете?",
+      transcript: [
+        { sender: "bot", text: "Мне все равно на технические сложности! Запуск сегодня вечером, иначе мы сорвем контракт с партнером и виноваты будете вы. Сделаете?" }
+      ] as { sender: "bot" | "user", text: string }[],
+      score: 0,
+      feedback: "",
+      submitted: false,
+    };
+    const sit3 = {
+      id: "sit_3",
+      title: "Кейс 3: Согласование бюджетов с Финдиром",
+      desc: "Вам необходимо защитить перед финансовым директором целесообразность закупки современного ПО для оптимизации работы за 50 тыс. руб.",
+      botPrompt: "Наш бюджет расписан до копейки. Зачем нам переплачивать за ваши модные ИИ-инструменты?",
+      transcript: [
+        { sender: "bot", text: "Наш бюджет расписан до копейки. Зачем нам переплачивать за ваши модные ИИ-инструменты?" }
+      ] as { sender: "bot" | "user", text: string }[],
+      score: 0,
+      feedback: "",
+      submitted: false,
+    };
+    
+    const normRole = (role || "").toLowerCase();
+    if (normRole.includes("разработ") || normRole.includes("it") || normRole.includes("програм") || normRole.includes("аналитик") || normRole.includes("тестир")) {
+      sit1.title = "Кейс 1: Срочное внесение изменений в архитектуру";
+      sit1.desc = "Заказчик требует посреди спринта переделать структуру баз данных и поменять сторонний API интеграции.";
+      sit1.botPrompt = "Нам срочно нужно заменить весь платежный шлюз на Stripe уже к завтрашнему утру для презентации инвесторам! Справитесь?";
+      sit1.transcript = [
+        { sender: "bot", text: "Нам срочно нужно заменить весь платежный шлюз на Stripe уже к завтрашнему утру для презентации инвесторам! Справитесь?" }
+      ];
+      
+      sit2.title = "Кейс 2: Критическая регрессия на прод сервере";
+      sit2.desc = "База полетела прямо во время демонстрации заказчикам. Ведущий девопс-инженер недоступен.";
+      sit2.botPrompt = "Все лежит! Пользователи видят 500 ошибку. Что вы будете предпринимать прямо сейчас?";
+      sit2.transcript = [
+        { sender: "bot", text: "Все лежит! Пользователи видят 500 ошибку, а через час у нас созвон с крупным фондом. Что вы будете предпринимать прямо сейчас?" }
+      ];
+      
+      sit3.title = "Кейс 3: Архитектурные разногласия с Тимлидом";
+      sit3.desc = "Вы считаете, что нужно использовать масштабируемый NoSQL, а тимлид настаивает на традиционной реляционной СУБД.";
+      sit3.botPrompt = "NoSQL принесет кучу проблем в будущем с поддержкой транзакций. Давай писать на PostgreSQL. Обоснуй аргументы.";
+      sit3.transcript = [
+        { sender: "bot", text: "NoSQL принесет кучу проблем в будущем с поддержкой транзакций. Давай писать на PostgreSQL. Обоснуй аргументы в копилку своей идеи." }
+      ];
+    }
+    
+    setSituationsList([sit1, sit2, sit3]);
+  };
 
+  // Populate checklist questions and cases when candidate context resolves
+  useEffect(() => {
+    if (candidate && checklistAnswers.length === 0) {
+      const role = candidate.roleName || project?.roleName || "Менеджер по продажам";
+      const qs = get20ChecklistQuestions(role);
+      setChecklistAnswers(qs.map(q => ({
+        question: q,
+        answer: getSmartDefaultAnswer(q, role)
+      })));
+      initSituations(role);
+    }
+  }, [candidate, project]);
+
+  // Stage 1 -> Stage 2 (Interviewing)
+  const handleStartInterview = () => {
+    setInterviewSubTab("resume");
+    updateStageOnBackend("interview");
+  };
+
+  const handleEvaluateResume = async () => {
+    if (!candidate) return;
+    setResumeAnalysing(true);
     try {
-      const res = await fetch("/api/evaluate-interview", {
+      const payload = {
+        candidateId: candidate.id,
+        resumeText: resumeTextEntry + (resumeFile ? ` [Файл: ${resumeFile.name}]` : "")
+      };
+      const res = await fetch("/api/evaluate-resume", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload)
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setResumeFeedback(data.feedback);
+        await refreshCandidate();
+      }
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setResumeAnalysing(false);
+    }
+  };
+
+  const handleEvaluateChecklist = async () => {
+    if (!candidate) return;
+    setChecklistAnalysing(true);
+    try {
+      const res = await fetch("/api/evaluate-checklist", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           candidateId: candidate.id,
-          candidateAnswers: answers,
-          resumeText: resumeTextEntry + (resumeFile ? ` [Файл резюме: ${resumeFile.name}]` : "")
+          answers: checklistAnswers
+        })
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setChecklistFeedback(data.feedback);
+        await refreshCandidate();
+      }
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setChecklistAnalysing(false);
+    }
+  };
+
+  const handleSendSituationMessage = async (idx: number) => {
+    if (!activeSitTextInput.trim()) return;
+    const currentList = [...situationsList];
+    const targetSit = currentList[idx];
+    if (targetSit.submitted) return;
+
+    targetSit.transcript.push({ sender: "user", text: activeSitTextInput });
+    const userMsgText = activeSitTextInput;
+    setActiveSitTextInput("");
+    setSituationsList(currentList);
+
+    setSitEvaluatingId(targetSit.id);
+    try {
+      const res = await fetch("/api/evaluate-situations", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          candidateId: candidate?.id || "cand-1",
+          answers: [
+            { question: targetSit.title || targetSit.desc, answer: userMsgText }
+          ]
         })
       });
 
       if (res.ok) {
-        const result = await res.json();
-        // Automatically fetch updated Candidate object
-        updateStageOnBackend("scoring");
+        const data = await res.json();
+        targetSit.score = data.situationsScore || 85;
+        targetSit.feedback = data.feedback || "Прекрасно обыграли ситуацию!";
+        targetSit.transcript.push({
+          sender: "bot",
+          text: `🎯 Оценка за кейс: ${targetSit.score} / 100 баллов.\n\nРазбор Робота:\n${targetSit.feedback}`
+        });
+        targetSit.submitted = true;
+        setSituationsList(currentList);
+        await refreshCandidate();
       }
-    } catch (err) {
-      console.error("Evaluation trigger errored:", err);
+    } catch (e) {
+      console.error(e);
+      targetSit.transcript.push({ sender: "bot", text: "Ошибка связи с ИИ-рекрутером. Пожалуйста, попробуйте еще раз!" });
+      setSituationsList(currentList);
+    } finally {
+      setSitEvaluatingId(null);
+    }
+  };
+
+  const handleFinishRoleplay = async () => {
+    if (!candidate) return;
+    setSituationsAnalysing(true);
+    try {
+      const formattedCaseAnswers = situationsList.map(sit => ({
+        question: sit.title,
+        answer: sit.transcript.map((t: any) => `${t.sender === "user" ? "Вы" : "Робот"}: ${t.text}`).join("\n")
+      }));
+      const res = await fetch("/api/evaluate-situations", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          candidateId: candidate.id,
+          answers: formattedCaseAnswers
+        })
+      });
+      if (res.ok) {
+        await refreshCandidate();
+        await updateStageOnBackend("scoring");
+        setActiveTab("scoring");
+      }
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setSituationsAnalysing(false);
     }
   };
 
@@ -237,7 +683,13 @@ export default function CandidateFlow() {
 
   // --- STAGE 4: INTERACTIVE TRAINING & LESSON PANEL ---
   const [activeLessonIdx, setActiveLessonIdx] = useState(0);
-  const [activeBlockIdx, setActiveBlockIdx] = useState(0);
+
+  const getTrainingBlockIdx = () => {
+    if (trainingSubTab === "professional") return 0;
+    if (trainingSubTab === "product") return 1;
+    if (trainingSubTab === "system") return 2;
+    return 0;
+  };
 
   // Active quiz choice
   const [selectedQuizIdx, setSelectedQuizIdx] = useState<number | null>(null);
@@ -249,10 +701,12 @@ export default function CandidateFlow() {
     if (!candidate || !candidate.trainingPlan) return;
     if (selectedQuizIdx === null) return;
 
-    const block = candidate.trainingPlan[activeBlockIdx];
+    const bIdx = getTrainingBlockIdx();
+    const block = candidate.trainingPlan[bIdx];
+    if (!block) return;
     const lesson = block.lessons[activeLessonIdx];
 
-    if (lesson.quiz) {
+    if (lesson && lesson.quiz) {
       const isCorrect = selectedQuizIdx === lesson.quiz.answerIndex;
       setQuizSubmitted(true);
 
@@ -262,7 +716,7 @@ export default function CandidateFlow() {
         
         // Mark lesson complete dynamically in training plan arrays
         const updatedPlan = [...candidate.trainingPlan];
-        updatedPlan[activeBlockIdx].lessons[activeLessonIdx].isCompleted = true;
+        updatedPlan[bIdx].lessons[activeLessonIdx].isCompleted = true;
 
         // Check if all lessons across all blocks are finished
         const allCompleted = updatedPlan.every(b => b.lessons.every(l => l.isCompleted));
@@ -287,17 +741,24 @@ export default function CandidateFlow() {
     setQuizSubmitted(false);
     setQuizMessage("");
 
-    const block = candidate.trainingPlan[activeBlockIdx];
+    const bIdx = getTrainingBlockIdx();
+    const block = candidate.trainingPlan[bIdx];
+    if (!block) return;
     const nextLessonIdx = activeLessonIdx + 1;
 
     if (nextLessonIdx < block.lessons.length) {
       setActiveLessonIdx(nextLessonIdx);
     } else {
-      // Move to next block if available
-      const nextBlockIdx = activeBlockIdx + 1;
-      if (nextBlockIdx < candidate.trainingPlan.length) {
-        setActiveBlockIdx(nextBlockIdx);
+      // Auto move to next subtab of training block to represent successful flow progression!
+      if (trainingSubTab === "professional") {
+        setTrainingSubTab("product");
         setActiveLessonIdx(0);
+      } else if (trainingSubTab === "product") {
+        setTrainingSubTab("system");
+        setActiveLessonIdx(0);
+      } else {
+        // finished system, check if certified is set
+        setActiveTab("certified");
       }
     }
   };
@@ -408,10 +869,9 @@ export default function CandidateFlow() {
                 navigate("/employer");
                 setMobileMenuOpen(false);
               }} 
-              className="transition text-left w-full px-4 py-3 rounded-xl text-slate-300 hover:text-white hover:bg-white/5 flex items-center justify-between"
+              className="transition text-left w-full px-4 py-3 rounded-xl text-slate-300 hover:text-white hover:bg-white/5"
             >
-              <span>Панель Руководителя</span>
-              <span>💼</span>
+              Панель Руководителя
             </button>
             <button 
               id="mobile_nav_candidate"
@@ -419,20 +879,9 @@ export default function CandidateFlow() {
                 navigate("/candidate");
                 setMobileMenuOpen(false);
               }} 
-              className="transition text-left w-full px-4 py-3 rounded-xl text-[#E7C768] bg-white/10 border border-[#E7C768]/20 flex items-center justify-between"
+              className="transition text-left w-full px-4 py-3 rounded-xl text-slate-300 hover:text-white hover:bg-white/5"
             >
-              <span>Кабинет Соискателя</span>
-              <span>🎓</span>
-            </button>
-            <button 
-              id="mobile_nav_admin"
-              onClick={() => {
-                navigate("/admin");
-                setMobileMenuOpen(false);
-              }} 
-              className="transition text-left w-full px-4 py-3 border border-indigo-500/20 rounded-xl text-indigo-300 hover:text-indigo-150 bg-indigo-500/10"
-            >
-              Кабинет Администратора ⚙️
+              Кабинет Соискателя
             </button>
             {candidate && (
               <>
@@ -450,235 +899,872 @@ export default function CandidateFlow() {
       {/* Main interactive Stepper panel */}
       <main className="flex-1 py-8 px-4 md:px-8 max-w-5xl mx-auto w-full">
         
-        {/* Step progress indicators indicator */}
-        <div className="mb-8 grid grid-cols-5 gap-2 text-center text-[10px] md:text-xs">
+        {/* Clickable tabs for Subpages */}
+        <div className="mb-8 grid grid-cols-3 sm:grid-cols-6 gap-2 text-center text-xs">
           {[
-            { id: "terms", title: "1. Условия вакансии" },
-            { id: "interview", title: "2. Собеседование" },
-            { id: "scoring", title: "3. Анализ баллов" },
-            { id: "training", title: "4. ИИ Обучение" },
-            { id: "certified", title: "5. Сертификация 🎓" }
-          ].map((st, i) => {
-            const isCompleted = ["terms", "interview", "scoring", "training", "certified"].indexOf(currentStage) >= i;
-            const isActive = currentStage === st.id;
+            { id: "profile", title: "👤 Профиль", desc: "Мой кабинет" },
+            { id: "terms", title: "📋 Условия", desc: "О вакансии" },
+            { id: "interview", title: "💬 Собесед-ние", desc: "Блиц HR-ИИ" },
+            { id: "scoring", title: "🎯 Оценка", desc: "Анализ баллов" },
+            { id: "training", title: "📚 ИИ обучение", desc: "Курс и тесты" },
+            { id: "certified", title: "🏆 Сертификат", desc: "Мой диплом" }
+          ].map((tab) => {
+            const isActive = activeTab === tab.id;
             return (
-              <div 
-                key={st.id} 
-                className={`py-2 rounded-xl font-bold border transition ${
+              <button 
+                type="button"
+                key={tab.id}
+                onClick={() => setActiveTab(tab.id)}
+                className={`cursor-pointer p-2.5 rounded-xl font-bold border transition-all text-center flex flex-col justify-center items-center gap-0.5 ${
                   isActive 
-                    ? "bg-[#1E4468] text-white border-[#E7C768] shadow-lg" 
-                    : isCompleted 
-                    ? "bg-[#1E4468]/30 text-gray-300 border-white/5 opacity-80" 
-                    : "bg-black/35 text-gray-400 border-white/10"
+                    ? "bg-[#E7C768] text-[#17344F] border-[#E7C768] shadow-lg scale-102" 
+                    : "bg-[#1E4468]/50 hover:bg-[#1E4468]/80 text-gray-200 border-white/10"
                 }`}
               >
-                {st.title}
-              </div>
+                <span className="text-[11px] sm:text-[13px] block">{tab.title}</span>
+                <span className={`text-[8px] block font-normal opacity-80 ${isActive ? "text-[#17344F]/85" : "text-gray-400"}`}>{tab.desc}</span>
+              </button>
             );
           })}
         </div>
 
-        {/* STEP 1: PRESENT JOB TERMS & DETAILS FOR THE APPLICANT */}
-        {currentStage === "terms" && (
-          <div className="bg-[#1E4468]/15 border border-white/10 shadow-2xl backdrop-blur-md rounded-3xl overflow-hidden grid grid-cols-1 md:grid-cols-12">
-            <div className="md:col-span-4 bg-gradient-to-b from-[#17344F] to-[#265582] p-8 text-white flex flex-col justify-between text-center items-center border-r border-white/10">
-              <Mascot state="narrator" size="lg" speechBubble="Привет! Давай знакомиться с условиями!" />
+        {/* Tab 1: Profile tab */}
+        {activeTab === "profile" && (
+          <div className="bg-[#1E4468]/15 border border-white/10 shadow-2xl backdrop-blur-md rounded-3xl p-6 md:p-8 space-y-6">
+            <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 pb-4 border-b border-white/10">
+              <div className="text-left">
+                <span className="text-[#E7C768] font-bold text-xs uppercase tracking-wider block">Личный кабинет соискателя</span>
+                <h2 className="text-2xl font-bold text-white mt-1">Профиль кандидата: {candidate?.name || "Алексей Иванов"}</h2>
+                <p className="text-xs text-gray-300 mt-1">
+                  Зарегистрирован через {candidate?.registeredVia === "telegram" ? "Telegram 🤖" : "Email ✉️"}. Идентификатор сессии: <span className="font-mono text-xs text-[#E7C768]">{candidate?.id || "cand-1"}</span>
+                </p>
+              </div>
               
-              <div className="space-y-1">
-                <h3 className="font-bold text-sm text-[#E7C768]">Продай свой опыт ИИ</h3>
-                <p className="text-[11px] text-gray-300 leading-snug">
-                  Если условия ниже вас устраивают, Робот Рекрутер начнет мгновенную сессию вопросов.
-                </p>
-              </div>
-            </div>
-
-            <div className="md:col-span-8 p-6 md:p-8 space-y-6">
-              <div>
-                <span className="text-[#E7C768] font-bold text-xs uppercase tracking-wider block">Новое приглашение к найму</span>
-                <h2 className="text-2xl font-bold text-white mt-1">{project?.roleName || "Специалист"}</h2>
-                <p className="text-gray-300 text-sm mt-1">Организация: <strong className="text-[#E7C768]">{project?.companyName || "ООО 'Компания'"}</strong></p>
-              </div>
-
-              {/* Salary & Conditions tags */}
-              <div className="grid grid-cols-2 gap-4">
-                <div className="bg-black/35 p-4 rounded-2xl border border-white/10">
-                  <span className="text-[10px] uppercase font-bold text-gray-400">Предлагаемая оплата</span>
-                  <div className="text-sm font-bold text-[#FF4C4C] mt-1">{project?.salaryTerms || "Сдельная"}</div>
-                </div>
-
-                <div className="bg-black/35 p-4 rounded-2xl border border-white/10">
-                  <span className="text-[10px] uppercase font-bold text-gray-400">График работы</span>
-                  <div className="text-sm font-bold text-[#E7C768] mt-1">{project?.scheduleTerms || "Гибкий"}</div>
-                </div>
-              </div>
-
-              {/* Motivation block */}
-              <div className="space-y-2 bg-black/30 border-l-4 border-[#E7C768] p-4 rounded-r-2xl">
-                <span className="text-xs font-bold text-[#E7C768] uppercase block">О компании и ценностях:</span>
-                <p className="text-xs text-gray-200 leading-relaxed italic">
-                  "{project?.motivationText || "Мы предлагаем комфортный климат для инноваций, стабильный оклад и крутые возможности карьерной лестницы."}"
-                </p>
-              </div>
-
-              {/* Wiki quick guide */}
-              {project?.customWiki && (
-                <div className="space-y-1.5 bg-[#E7C768]/5 p-4 rounded-2xl border border-[#E7C768]/20">
-                  <span className="text-xs font-bold text-[#E7C768] uppercase block">Вводный буклет / Вики сотрудника:</span>
-                  <p className="text-xs text-gray-300 leading-relaxed line-clamp-3">
-                    {project.customWiki}
-                  </p>
-                </div>
-              )}
-
-              {/* CTA button */}
               <button
-                id="btn_accept_terms"
-                onClick={handleStartInterview}
-                className="cursor-pointer w-full bg-gradient-to-r from-[#FF1A1A] to-[#E54C00] text-white font-bold py-3.5 rounded-xl text-center shadow-lg transition transform hover:-translate-y-0.5 active:translate-y-0"
+                type="button"
+                onClick={() => setEditingProfile(!editingProfile)}
+                className="cursor-pointer bg-gradient-to-r from-[#FF1A1A] to-[#E54C00] text-white font-bold text-xs px-4 py-2.5 rounded-xl transition hover:opacity-95 shadow"
               >
-                Согласен с условиями, начать собеседование!
+                {editingProfile ? "Отмена редактирования" : "📝 Редактировать профиль"}
               </button>
             </div>
+
+            {saveProfileMsg && (
+              <div className="p-3 bg-emerald-500/20 text-emerald-200 border border-emerald-500/30 text-xs font-bold rounded-xl text-left">
+                {saveProfileMsg}
+              </div>
+            )}
+
+            {editingProfile ? (
+              <form onSubmit={handleSaveProfile} className="space-y-4 max-w-xl bg-black/25 p-6 rounded-2xl border border-white/5 text-left">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="space-y-1">
+                    <label className="text-xs font-bold text-slate-300">ФИО Кандидата:</label>
+                    <input
+                      type="text"
+                      className="w-full bg-[#17344F] text-xs text-white p-2.5 rounded-xl border border-white/10 focus:outline-none focus:border-[#E7C768]"
+                      value={profName}
+                      onChange={(e) => setProfName(e.target.value)}
+                      required
+                    />
+                  </div>
+
+                  <div className="space-y-1">
+                    <label className="text-xs font-bold text-slate-300">Email (Почта):</label>
+                    <input
+                      type="email"
+                      className="w-full bg-[#17344F] text-xs text-white p-2.5 rounded-xl border border-white/10 focus:outline-none focus:border-[#E7C768]"
+                      value={profEmail}
+                      onChange={(e) => setProfEmail(e.target.value)}
+                      required
+                    />
+                  </div>
+
+                  <div className="space-y-1 md:col-span-2">
+                    <label className="text-xs font-bold text-slate-300">Никнейм в Телеграм (без @):</label>
+                    <input
+                      type="text"
+                      className="w-full bg-[#17344F] text-xs text-white p-2.5 rounded-xl border border-white/10 focus:outline-none focus:border-[#E7C768]"
+                      value={profTelegram}
+                      placeholder="alex_ivanov_sale"
+                      onChange={(e) => setProfTelegram(e.target.value)}
+                    />
+                  </div>
+                </div>
+
+                <button
+                  type="submit"
+                  className="cursor-pointer bg-[#E7C768] hover:bg-[#E7C768]/90 text-[#17344F] font-bold text-xs py-2.5 px-5 rounded-xl transition"
+                >
+                  Сохранить изменения
+                </button>
+              </form>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                
+                {/* Details list */}
+                <div className="bg-black/25 p-5 rounded-2xl border border-white/5 space-y-4 text-left">
+                  <h3 className="font-bold text-xs text-[#E7C768] uppercase border-b border-white/5 pb-2">Учетная инфо</h3>
+                  <div className="space-y-2 text-xs">
+                    <div>
+                      <span className="text-gray-400 block font-normal">ФИО соискателя:</span>
+                      <strong className="text-white text-sm">{candidate?.name || "Алексей Иванов"}</strong>
+                    </div>
+                    <div>
+                      <span className="text-gray-400 block font-normal">Адрес почты:</span>
+                      <strong className="text-white">{candidate?.email || "ivanov@example.com"}</strong>
+                    </div>
+                    <div>
+                      <span className="text-gray-400 block font-normal">Контакты Telegram:</span>
+                      {candidate?.telegramUsername ? (
+                        <a href={`https://t.me/${candidate.telegramUsername}`} target="_blank" className="text-[#E7C768] font-bold underline flex items-center gap-1 mt-0.5" rel="noreferrer">
+                          @{candidate.telegramUsername} <ExternalLink className="w-3 h-3" />
+                        </a>
+                      ) : (
+                        <span className="text-gray-400 italic">не указан</span>
+                      )}
+                    </div>
+                  </div>
+                </div>
+
+                {/* Onboarding map Checklist progression */}
+                <div className="bg-black/25 p-5 rounded-2xl border border-white/5 space-y-4 text-left">
+                  <h3 className="font-bold text-xs text-[#E7C768] uppercase border-b border-white/5 pb-2">Степень прохождения</h3>
+                  <div className="space-y-2 text-xs">
+                    {[
+                      { id: "terms", title: "Условия изучены", stageVal: "terms" },
+                      { id: "interview", title: "ИИ Собеседование", stageVal: "interview" },
+                      { id: "scoring", title: "ИИ Оценка баллов", stageVal: "scoring" },
+                      { id: "training", title: "Курс ИИ Обучения", stageVal: "training" },
+                      { id: "certified", title: "Получен сертификат", stageVal: "certified" }
+                    ].map((step, idx) => {
+                      const stagesList = ["terms", "interview", "scoring", "training", "certified"];
+                      const currentIdx = stagesList.indexOf(currentStage);
+                      const isPast = currentIdx > idx;
+                      const isCurrent = currentStage === step.stageVal;
+                      return (
+                        <div key={step.id} className="flex items-center gap-2">
+                          <CheckCircle className={`w-4 h-4 ${isPast || isCurrent ? "text-emerald-400" : "text-gray-500"}`} />
+                          <span className={`${isCurrent ? "text-[#E7C768] font-bold" : "text-gray-300"}`}>
+                            {step.title} {isCurrent && "← Вы тут"}
+                          </span>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                {/* Active Job context card */}
+                <div className="bg-black/25 p-5 rounded-2xl border border-white/5 space-y-4 text-left">
+                  <h3 className="font-bold text-xs text-[#E7C768] uppercase border-b border-white/5 pb-2">Приглашение</h3>
+                  <div className="space-y-2 text-xs">
+                    <div>
+                      <span className="text-gray-400 block font-normal">Компания прикрепления:</span>
+                      <strong className="text-white text-sm">{project?.companyName || "ООО УльтраДизайн"}</strong>
+                    </div>
+                    <div>
+                      <span className="text-gray-400 block font-normal">Вакантная должность:</span>
+                      <strong className="text-[#E7C768] font-bold text-sm block">{candidate?.roleName || project?.roleName || "Менеджер"}</strong>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setActiveTab("terms")}
+                      className="cursor-pointer mt-2 text-[11px] font-bold bg-[#1E4468] text-white px-3 py-1.5 rounded-lg border border-white/10 text-center hover:bg-[#1E4468]/80 transition flex items-center gap-1"
+                    >
+                      Изучить детальные условия <ArrowRight className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+                </div>
+
+              </div>
+            )}
+
+            {/* Resume Upload Module */}
+            <div className="bg-black/15 p-5 border border-white/5 rounded-2xl text-left">
+              <h3 className="font-bold text-xs text-[#E7C768] uppercase pb-2 mb-3 border-b border-white/15">
+                📁 Файловое досье кандидата (Резюме и Документы)
+              </h3>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6 items-center">
+                <div className="space-y-2 text-xs text-slate-300">
+                  <p>
+                    Для улучшения ИИ-аналитики и более точной оценки выставите подробное описание опыта в поле ниже или загрузите резюме в формате PDF.
+                  </p>
+                  <p className="font-mono text-[10px] text-emerald-400">
+                    Статус файла: {resumeFile ? `✅ Загружен: ${resumeFile.name}` : "⚠️ Файл не загружен. Используется текстовое резюме"}
+                  </p>
+                </div>
+
+                <div
+                  onDragOver={handleDragOver}
+                  onDragLeave={handleDragLeave}
+                  onDrop={handleDrop}
+                  className={`border-2 border-dashed rounded-2xl p-5 text-center transition ${
+                    isDragOver 
+                      ? "border-[#E7C768] bg-amber-950/20" 
+                      : attachmentUploaded 
+                      ? "border-emerald-500 bg-emerald-950/20" 
+                      : "border-white/10 bg-black/20 hover:border-[#E7C768]"
+                  }`}
+                >
+                  <Upload className="w-5 h-5 text-gray-400 mx-auto" />
+                  <div className="text-xs font-bold text-gray-300 mt-1">
+                    {attachmentUploaded ? "✅ Файл резюме прикреплен" : "Перетащите PDF сюда"}
+                  </div>
+                  <input
+                    type="file"
+                    accept=".pdf"
+                    onChange={handleFileChange}
+                    className="hidden"
+                    id="profile-resume-input"
+                  />
+                  <label
+                    htmlFor="profile-resume-input"
+                    className="cursor-pointer inline-block mt-2 bg-white/5 border border-white/10 px-3 py-1.5 rounded-lg text-[10px] font-bold text-center hover:bg-white/10 transition"
+                  >
+                    Обзор файлов
+                  </label>
+                </div>
+              </div>
+            </div>
+
           </div>
         )}
 
-        {/* STEP 2: CHAT INTERVIEW RECRUITER QUESTIONING */}
-        {currentStage === "interview" && (
-          <div className="grid grid-cols-1 md:grid-cols-12 gap-8 items-start">
+        {/* Tab 2: Terms & Conditions with nested tabs */}
+        {activeTab === "terms" && (
+          <div className="bg-[#1E4468]/15 border border-white/10 shadow-2xl backdrop-blur-md rounded-3xl overflow-hidden min-h-[480px] flex flex-col md:flex-row">
             
-            {/* Sidebar resume upload container */}
-            <div className="md:col-span-5 bg-[#1E4468]/15 border border-white/10 shadow-xl backdrop-blur-md rounded-3xl p-6  space-y-5 text-white">
-              <div className="text-center">
-                <FileText className="w-8 h-8 text-[#E7C768] mx-auto" />
-                <h3 className="font-bold text-sm text-[#E7C768] mt-2">Резюме и Опыт</h3>
-                <p className="text-[11px] text-gray-300 mt-1">Прикрепите PDF файл для изучения.</p>
-              </div>
-
-              {/* Drag drop area */}
-              <div
-                onDragOver={handleDragOver}
-                onDragLeave={handleDragLeave}
-                onDrop={handleDrop}
-                className={`border-2 border-dashed rounded-2xl p-5 text-center transition ${
-                  isDragOver 
-                    ? "border-[#E7C768] bg-amber-950/20" 
-                    : attachmentUploaded 
-                    ? "border-emerald-500 bg-emerald-950/20" 
-                    : "border-white/10 bg-black/20 hover:border-[#E7C768]"
-                }`}
-              >
-                <Upload className="w-6 h-6 text-gray-400 mx-auto" />
-                <div className="text-xs font-bold text-gray-300 mt-2">
-                  {attachmentUploaded ? "✅ Файл резюме прикреплен" : "Перетащите PDF сюда"}
+            {/* Left/Internal Sub navigation list */}
+            <div className="w-full md:w-56 bg-gradient-to-b from-[#17344F] to-[#1F2E3E]/70 p-4 border-r border-white/10 flex flex-col justify-between">
+              <div className="space-y-4">
+                <div className="border-b border-white/10 pb-2 text-left">
+                  <span className="text-[#E7C768] font-bold text-[10px] uppercase tracking-wider block">Разделы условий</span>
+                  <h3 className="font-extrabold text-[13px] text-white">Условия работы</h3>
                 </div>
-                {resumeFile ? (
-                  <p className="text-[10px] text-emerald-400 font-mono mt-1 font-bold">{resumeFile.name}</p>
-                ) : (
-                  <p className="text-[10px] text-gray-400 mt-1">или выберите на компьютере</p>
-                )}
-
-                <input
-                  type="file"
-                  accept=".pdf"
-                  onChange={handleFileChange}
-                  className="hidden"
-                  id="resume-file-input"
-                />
                 
-                <label
-                  htmlFor="resume-file-input"
-                  className="cursor-pointer block mt-3 w-full bg-white/5 border border-white/10 shadow-sm text-xs font-bold py-1.5 rounded-lg hover:bg-white/10 transition"
-                >
-                  Обзор файлов
-                </label>
+                <div className="flex flex-col gap-1">
+                  {[
+                    { id: "vacancy", title: "💼 Вакансия", desc: "Суть работы" },
+                    { id: "motivation", title: "🚀 Мотивация", desc: "Ваш доход и рост" },
+                    { id: "company", title: "🏢 О компании", desc: "Кто мы такие" },
+                    { id: "onboarding", title: "✍️ Оформление", desc: "Трудоустройство" },
+                    { id: "payouts", title: "💳 Выплаты", desc: "Когда и сколько" },
+                    { id: "schedule", title: "📅 График", desc: "Режим и смены" },
+                    { id: "team", title: "👥 Команда", desc: "Коллеги и руководство" },
+                    { id: "system", title: "⚙️ Система", desc: "Регламенты и Wiki" }
+                  ].map((subTab) => {
+                    const isSelected = termsSubTab === subTab.id;
+                    return (
+                      <button
+                        type="button"
+                        key={subTab.id}
+                        onClick={() => setTermsSubTab(subTab.id)}
+                        className={`cursor-pointer w-full text-left p-2 rounded-xl transition duration-150 flex flex-col ${
+                          isSelected
+                            ? "bg-[#E7C768] text-[#17344F] shadow-md font-bold"
+                            : "text-slate-300 hover:bg-white/5"
+                        }`}
+                      >
+                        <span className="text-xs">{subTab.title}</span>
+                        <span className={`text-[9px] font-normal ${isSelected ? "text-[#17344F]/80" : "text-gray-400"}`}>{subTab.desc}</span>
+                      </button>
+                    );
+                  })}
+                </div>
               </div>
 
-              {/* Text Resume Alternative */}
-              <div className="space-y-1">
-                <label className="text-xs font-bold text-gray-300 block">Либо введите информацию вручную:</label>
-                <textarea
-                  rows={4}
-                  className="w-full bg-black/35 text-white text-xs p-2.5 rounded-xl border border-white/10 focus:outline-none focus:border-[#E7C768]"
-                  placeholder="Опишите ваши сильные стороны, навыки, проекты..."
-                  value={resumeTextEntry}
-                  onChange={(e) => setResumeTextEntry(e.target.value)}
-                />
+              <div className="mt-6 bg-black/25 p-3 rounded-xl border border-white/5 text-center hidden md:block">
+                <Mascot state="narrator" size="sm" />
+                <p className="text-[10px] text-slate-300 mt-1">Ознакомьтесь со всеми вкладками, далее нажмите "Пройти собеседование"!</p>
               </div>
             </div>
 
-            {/* Chatbot module */}
-            <div className="md:col-span-7 bg-[#1E4468]/15 border border-white/10 shadow-2xl backdrop-blur-md rounded-3xl overflow-hidden flex flex-col h-[520px]">
-              
-              {/* Chat head */}
-              <div className="bg-[#1E4468]/60 text-white p-4 flex items-center justify-between border-b border-[#E7C768]/60">
-                <div className="flex items-center gap-2">
-                  <Mascot state="recruitment" size="sm" className="w-8 h-8 pointer-events-none" />
-                  <div>
-                    <h4 className="font-bold text-xs text-[#E7C768]">ИИ Скрининг-Интервьюёр</h4>
-                    <span className="text-[9px] text-gray-300">Прямое подключение к HR Роботу</span>
+            {/* Right panel details based on subTab */}
+            <div className="flex-1 p-6 md:p-8 flex flex-col justify-between">
+              <div className="space-y-6 text-left">
+                
+                {termsSubTab === "vacancy" && (
+                  <div className="space-y-4 animate-fadeIn">
+                    <span className="text-[#E7C768] text-xs font-bold uppercase tracking-wider block">Опубликованная вакансия</span>
+                    <h2 className="text-2xl font-bold text-white">{project?.roleName || "Специалист"}</h2>
+                    <p className="text-slate-300 text-xs leading-relaxed font-normal">
+                      Мы ищем сильного специалиста на должность <strong className="text-[#E7C768]">{project?.roleName}</strong>. Эта позиция предполагает работу в нашей передовой ИИ-платформе. 
+                      Вы будете вести сделки, коммуницировать с целевой аудиторией и помогать развивать наши высокотехнологичные продукты.
+                    </p>
+                    <div className="bg-white/5 p-4 rounded-xl border border-white/5 space-y-2">
+                      <h4 className="text-xs font-bold text-[#E7C768] uppercase">Ключевые Обязанности:</h4>
+                      <ul className="list-disc pl-4 text-xs text-slate-300 space-y-1">
+                        <li>Качественное консультирование клиентов по стандартам и инструкциям;</li>
+                        <li>Сопровождение клиентов в нашей экосистеме, ведение CRM;</li>
+                        <li>Входной контроль требований и своевременная отчётность руководителю.</li>
+                      </ul>
+                    </div>
                   </div>
-                </div>
-              </div>
+                )}
 
-              {/* Messages space */}
-              <div className="flex-1 overflow-y-auto p-4 space-y-4">
-                {chatMessages.map((msg, i) => {
-                  const isRecruiter = msg.sender === "recruiter";
-                  return (
-                    <div
-                      key={i}
-                      className={`flex ${isRecruiter ? "justify-start" : "justify-end"}`}
-                    >
-                      <div
-                        className={`max-w-xs xl:max-w-md p-3.5 rounded-2xl text-xs leading-relaxed space-y-1 ${
-                          isRecruiter
-                            ? "bg-black/35 text-white rounded-tl-none border border-white/10"
-                            : "bg-[#1E4468] border border-white/10 text-white rounded-tr-none shadow"
-                        }`}
-                      >
-                        <p className="whitespace-pre-wrap">{msg.text}</p>
-                        <span className="text-[8px] opacity-75 block text-right font-mono">
-                          {msg.timestamp}
-                        </span>
+                {termsSubTab === "motivation" && (
+                  <div className="space-y-4 animate-fadeIn">
+                    <span className="text-[#E7C768] text-xs font-bold uppercase tracking-wider block">Мотивационный буклет</span>
+                    <h2 className="text-xl font-bold text-white">Мотивация и Карьерный рост</h2>
+                    <p className="text-xs text-slate-300 leading-relaxed italic border-l-4 border-[#E7C768] pl-3">
+                      "{project?.motivationText || "Наша компания предлагает крутые возможности карьерной лестницы, стабильный оклад и оплачиваемое обучение."}"
+                    </p>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div className="bg-black/35 p-4 rounded-xl border border-white/5">
+                        <span className="text-[10px] font-bold text-slate-400 block uppercase">Структура дохода</span>
+                        <p className="text-xs text-white font-bold mt-1">Оклад + KPI в зависимости от выполнения плана продаж или активности.</p>
+                      </div>
+                      <div className="bg-black/35 p-4 rounded-xl border border-white/5">
+                        <span className="text-[10px] font-bold text-slate-400 block uppercase">Профессиональный Рост</span>
+                        <p className="text-xs text-[#E7C768] font-bold mt-1">Грейдовая сетка (Junior, Middle, Senior) и выдвижение в тимлиды.</p>
                       </div>
                     </div>
-                  );
-                })}
-                <div ref={chatEndRef} />
+                  </div>
+                )}
+
+                {termsSubTab === "company" && (
+                  <div className="space-y-4 animate-fadeIn">
+                    <span className="text-[#E7C768] text-xs font-bold uppercase tracking-wider block">Манифест организации</span>
+                    <h2 className="text-xl font-bold text-white">Информация о компании: {project?.companyName || "ООО Работодатель"}</h2>
+                    <p className="text-xs text-slate-300 leading-relaxed font-normal">
+                      Компания <strong className="text-white">{project?.companyName}</strong> — признанный флагман в своей технологической сфере. Мы гордимся тем, что строим полностью прозрачные и понятные рабочие процессы. 
+                      Внедрение нашего ИИ Робота Рекрутера помогает нам мгновенно обучать новых людей, адаптируя их прямо под внутреннюю специфику наших регламентов и Wiki-баз.
+                    </p>
+                    <div className="bg-[#E7C768]/5 p-4 rounded-xl border border-[#E7C768]/20 text-xs space-y-2">
+                      <h4 className="font-bold text-[#E7C768]">Наши ценности:</h4>
+                      <p className="text-slate-200">
+                        Честность, инновационность и скорость. Мы дорожим временем наших соискателей и обеспечиваем автоматический онбординг сразу после собеседования!
+                      </p>
+                    </div>
+                  </div>
+                )}
+
+                {termsSubTab === "onboarding" && (
+                  <div className="space-y-4 animate-fadeIn">
+                    <span className="text-[#E7C768] text-xs font-bold uppercase tracking-wider block">Правила адаптации</span>
+                    <h2 className="text-xl font-bold text-white font-serif">Оформление и трудоустройство</h2>
+                    <p className="text-xs text-slate-300 leading-relaxed font-normal">
+                      Мы ставим процессы оформления на полностью прозрачные рельсы в строгом соответствии со стандартами.
+                    </p>
+                    <div className="bg-black/35 p-4 rounded-xl border border-white/5 space-y-2 text-xs font-normal">
+                      <div className="flex justify-between border-b border-white/5 pb-1">
+                        <span className="text-gray-400">Вид договора:</span>
+                        <span className="text-white font-bold">ТК РФ / ГПХ / СЗ</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-gray-400">Срок оформления:</span>
+                        <span className="text-white font-bold">1 рабочий день</span>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {termsSubTab === "payouts" && (
+                  <div className="space-y-4 animate-fadeIn">
+                    <span className="text-[#E7C768] text-xs font-bold uppercase tracking-wider block">Финансы</span>
+                    <h2 className="text-xl font-bold text-white font-serif">Выплаты и Бонусы</h2>
+                    <p className="text-xs text-slate-300 leading-relaxed font-normal">
+                      Заработная плата выплачивается стабильно два раза в месяц на любую карту банка РФ без скрытых комиссий.
+                    </p>
+                    <div className="bg-gradient-to-br from-[#E7C768]/15 to-[#FF4C4C]/5 p-4 rounded-xl border border-[#E7C768]/20 text-xs">
+                      <strong>Прозрачные условия:</strong> {project?.salaryTerms || "Стабильно и вовремя"}
+                    </div>
+                  </div>
+                )}
+
+                {termsSubTab === "schedule" && (
+                  <div className="space-y-4 animate-fadeIn">
+                    <span className="text-[#E7C768] text-xs font-bold uppercase tracking-wider block">Режим работы</span>
+                    <h2 className="text-xl font-bold text-white font-serif">График и Смены</h2>
+                    <p className="text-xs text-slate-300 leading-relaxed font-normal">
+                      Планируемый режим занятости: <span className="text-[#E7C768] font-bold">{project?.scheduleTerms || "Гибкий"}</span>. Все детали согласовываются индивидуально с наставником.
+                    </p>
+                  </div>
+                )}
+
+                {termsSubTab === "team" && (
+                  <div className="space-y-4 animate-fadeIn">
+                    <span className="text-[#E7C768] text-xs font-bold uppercase tracking-wider block">Коллеги</span>
+                    <h2 className="text-xl font-bold text-white font-serif">Ваша рабочая группа</h2>
+                    <p className="text-xs text-slate-300 leading-relaxed font-normal">
+                      Вы будете работать в плотной интеграции со специалистами отдела адаптации и ведущими кураторами компании.
+                    </p>
+                  </div>
+                )}
+
+                {termsSubTab === "system" && (
+                  <div className="space-y-4 animate-fadeIn">
+                    <span className="text-[#E7C768] text-xs font-bold uppercase tracking-wider block">Регламенты</span>
+                    <h2 className="text-xl font-bold text-white font-serif">Базовая Wiki-система</h2>
+                    <p className="text-xs text-slate-300 leading-relaxed font-mono whitespace-pre-wrap bg-black/40 p-4 rounded-xl border border-white/5">
+                      {project?.customWiki || "Определенные правила адаптации и пользования внутренними CRM-системами."}
+                    </p>
+                  </div>
+                )}
+
               </div>
 
-              {/* Chat Send console */}
-              <div className="p-3 border-t border-white/10 bg-black/45 flex items-center gap-2">
-                <input
-                  type="text"
-                  placeholder="Впишите ваш ответ..."
-                  className="flex-1 bg-black/30 border border-white/10 px-3 py-2.5 rounded-xl text-xs text-white focus:outline-none focus:border-[#E7C768]"
-                  value={userTextInput}
-                  onChange={(e) => setUserTextInput(e.target.value)}
-                  onKeyDown={(e) => e.key === "Enter" && handleSendMessage()}
-                />
+              {/* Direct path trigger button to transition candidate */}
+              <div className="mt-8 pt-4 border-t border-white/10 flex flex-col sm:flex-row justify-between items-center gap-4">
+                <span className="text-[11px] text-slate-400 italic text-center sm:text-left">Все разделы изучены? Теперь смело переходите на собеседование!</span>
                 <button
-                  onClick={handleSendMessage}
-                  className="cursor-pointer bg-gradient-to-r from-[#FF1A1A] to-[#E54C00] text-white p-2.5 rounded-xl transition shadow"
+                  type="button"
+                  id="btn_accept_terms"
+                  onClick={() => {
+                    setActiveTab("interview");
+                    if (currentStage === "terms") {
+                      handleStartInterview();
+                    }
+                  }}
+                  className="cursor-pointer bg-gradient-to-r from-[#FF1A1A] to-[#E54C00] text-white font-bold py-3 px-6 rounded-xl text-xs flex items-center gap-1 hover:opacity-95 shadow active:scale-98 transition-all"
                 >
-                  <Send className="w-4 h-4" />
+                  Перейти на ИИ-Собеседование <ArrowRight className="w-4 h-4" />
                 </button>
               </div>
 
             </div>
+          </div>
+        )}
+
+        {/* Tab 3: Interview module */}
+        {activeTab === "interview" && (
+          <div className="space-y-6">
+            
+            {/* Sub-tabs header inside the page for three sequential stages */}
+            <div className="bg-[#1E4468]/30 border border-white/10 rounded-2xl p-2.5 flex flex-col sm:flex-row items-center justify-between gap-4">
+              <div className="flex flex-wrap items-center gap-2">
+                {[
+                  { id: "resume", stepNum: "1", title: "Резюме", desc: "Скрининг & Оценка", score: candidate?.scores?.resumeScore },
+                  { id: "checklist", stepNum: "2", title: "Чек-лист", desc: "20 вопросов от ИИ", score: candidate?.scores?.checklistScore },
+                  { id: "situations", stepNum: "3", title: "Ситуации", desc: "Диалог в 3 кейсах", score: candidate?.scores?.situationsScore }
+                ].map((sub) => {
+                  const isSel = interviewSubTab === sub.id;
+                  return (
+                    <button
+                      type="button"
+                      key={sub.id}
+                      onClick={() => setInterviewSubTab(sub.id)}
+                      className={`cursor-pointer px-4 py-2.5 rounded-xl border transition-all duration-150 text-left flex items-center gap-3 ${
+                        isSel
+                          ? "bg-[#E7C768] text-[#17344F] border-[#E7C768] font-bold shadow-md"
+                          : "bg-[#1E4468]/50 text-slate-300 border-white/5 hover:bg-white/5"
+                      }`}
+                    >
+                      <span className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold ${isSel ? "bg-[#17344F] text-[#E7C768]" : "bg-white/10 text-white"}`}>
+                        {sub.stepNum}
+                      </span>
+                      <div>
+                        <span className="text-xs block font-bold leading-tight">{sub.title}</span>
+                        <span className={`text-[9px] block font-normal ${isSel ? "text-[#17344F]/75" : "text-gray-400"}`}>
+                          {sub.score !== undefined && sub.score > 0 ? `✅ ${sub.score} баллов` : sub.desc}
+                        </span>
+                      </div>
+                    </button>
+                  );
+                })}
+              </div>
+
+              <div className="text-right text-xs bg-[#17344F] px-4 py-2 rounded-xl border border-white/5">
+                <span className="text-slate-400 block font-mono text-[9px] uppercase">Ваш текущий прогресс:</span>
+                <strong className="text-white font-bold">Этап {interviewSubTab === "resume" ? "1" : interviewSubTab === "checklist" ? "2" : "3"} из 3</strong>
+              </div>
+            </div>
+
+            {/* Sub-tab 1: RESUME (Resume Screening & Upload) */}
+            {interviewSubTab === "resume" && (
+              <div className="bg-[#1E4468]/15 border border-white/10 shadow-2xl backdrop-blur-md rounded-3xl p-6 md:p-8 space-y-6">
+                <div className="border-b border-white/5 pb-4 text-left">
+                  <span className="text-[#E7C768] font-bold text-xs uppercase tracking-wider block">Этап #1: Скрининг Резюме</span>
+                  <h2 className="text-2xl font-bold text-white mt-1">Оценка структуры опыта и квалификации</h2>
+                  <p className="text-xs text-slate-300 mt-1">
+                    Загрузите ваше актуальное резюме в формате PDF или введите подробности профессионального пути вручную для автоматического скоринга нейросетью.
+                  </p>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-8 items-start">
+                  
+                  {/* Left Controls */}
+                  <div className="space-y-5">
+                    
+                    {/* Drag & drop container */}
+                    <div
+                      onDragOver={handleDragOver}
+                      onDragLeave={handleDragLeave}
+                      onDrop={handleDrop}
+                      className={`border-2 border-dashed rounded-2xl p-6 text-center transition ${
+                        isDragOver 
+                          ? "border-[#E7C768] bg-amber-950/20" 
+                          : attachmentUploaded 
+                          ? "border-emerald-500 bg-emerald-950/20" 
+                          : "border-white/10 bg-black/20 hover:border-[#E7C768]"
+                      }`}
+                    >
+                      <Upload className="w-8 h-8 text-gray-400 mx-auto" />
+                      <div className="text-sm font-bold text-gray-300 mt-2">
+                        {attachmentUploaded ? "✅ Файл резюме прикреплен" : "Перетащите PDF резюме сюда"}
+                      </div>
+                      {resumeFile ? (
+                        <p className="text-xs text-emerald-400 font-mono mt-1 font-bold">{resumeFile.name}</p>
+                      ) : (
+                        <p className="text-xs text-gray-400 mt-1">или выберите на вашем компьютере</p>
+                      )}
+
+                      <input
+                        type="file"
+                        accept=".pdf"
+                        onChange={handleFileChange}
+                        className="hidden"
+                        id="resume-file-input"
+                      />
+                      
+                      <label
+                        htmlFor="resume-file-input"
+                        className="cursor-pointer inline-block mt-3 bg-white/5 border border-white/10 shadow-sm text-xs font-bold px-4 py-2 rounded-lg hover:bg-white/10 transition"
+                      >
+                        Обзор файлов
+                      </label>
+                    </div>
+
+                    {/* Manual Entry Text */}
+                    <div className="space-y-1 text-left">
+                      <label className="text-xs font-bold text-gray-300 block">Опишите свой профессиональный путь текстом:</label>
+                      <textarea
+                        rows={5}
+                        className="w-full bg-black/35 text-white text-xs p-3 rounded-xl border border-white/10 focus:outline-none focus:border-[#E7C768]"
+                        placeholder="Опишите ваши сильные стороны, навыки, предыдущие проекты, компании, где трудились ранее..."
+                        value={resumeTextEntry}
+                        onChange={(e) => setResumeTextEntry(e.target.value)}
+                      />
+                    </div>
+
+                    <button
+                      onClick={handleEvaluateResume}
+                      disabled={resumeAnalysing}
+                      className="cursor-pointer w-full bg-gradient-to-r from-[#FF1A1A] to-[#E54C00] text-white font-bold py-3 rounded-xl text-center shadow hover:opacity-95 transition flex items-center justify-center gap-2"
+                    >
+                      {resumeAnalysing ? (
+                        <>
+                          <Loader className="w-4 h-4 animate-spin" /> Анализируем опыт по стандартам...
+                        </>
+                      ) : (
+                        <>
+                          <Cpu className="w-4 h-4" /> Провести скрининг резюме 🤖
+                        </>
+                      )}
+                    </button>
+                  </div>
+
+                  {/* Right Results Output */}
+                  <div className="bg-black/25 p-5 rounded-2xl border border-white/5 text-left flex flex-col justify-between min-h-[360px]">
+                    <div className="space-y-4">
+                      <div className="flex items-center justify-between border-b border-white/10 pb-2">
+                        <h4 className="font-bold text-xs text-[#E7C768] uppercase tracking-wider flex items-center gap-2">
+                          🎯 Вердикт ИИ-Системы
+                        </h4>
+                        {candidate?.scores?.resumeScore !== undefined && candidate.scores.resumeScore > 0 && (
+                          <span className="bg-emerald-500/20 text-emerald-300 font-mono text-xs font-bold px-2 py-0.5 rounded-full">
+                            {candidate.scores.resumeScore} / 100 баллов
+                          </span>
+                        )}
+                      </div>
+
+                      {resumeFeedback ? (
+                        <div className="text-xs text-gray-200 leading-relaxed space-y-3 whitespace-pre-wrap font-normal">
+                          {resumeFeedback}
+                        </div>
+                      ) : candidate?.scores?.resumeScore ? (
+                        <div className="text-xs text-gray-200 leading-relaxed font-normal">
+                          <p className="text-emerald-400 font-bold mb-2">✅ Скрининг успешно завершен.</p>
+                          Резюме изучено, опыт калиброван под заданную вакансию ({project?.roleName || candidate.roleName}). Все метрики сохранены в профиле.
+                        </div>
+                      ) : (
+                        <div className="text-xs text-gray-400 italic py-10 text-center font-normal">
+                          Ждем от вас запуска скрининга. Нажмите на красную кнопку слева для автоматического расчета балла резюме.
+                        </div>
+                      )}
+                    </div>
+
+                    {candidate?.scores?.resumeScore !== undefined && candidate.scores.resumeScore > 0 && (
+                      <div className="pt-4 border-t border-white/5">
+                        <button
+                          onClick={() => setInterviewSubTab("checklist")}
+                          className="cursor-pointer w-full bg-[#1E4468] hover:bg-[#1E4468]/80 text-white font-bold py-2 rounded-lg text-xs flex items-center justify-center gap-1.5"
+                        >
+                          Перейти на шаг #2: Чек-лист по теории <ArrowRight className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
+                    )}
+                  </div>
+
+                </div>
+              </div>
+            )}
+
+            {/* Sub-tab 2: CHECKLIST (20 Theoretical questions) */}
+            {interviewSubTab === "checklist" && (
+              <div className="bg-[#1E4468]/15 border border-white/10 shadow-2xl backdrop-blur-md rounded-3xl p-6 md:p-8 space-y-6">
+                <div className="border-b border-white/5 pb-4 text-left">
+                  <span className="text-[#E7C768] font-bold text-xs uppercase tracking-wider block">Этап #2: Профессиональный Чек-Лист</span>
+                  <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2">
+                    <h2 className="text-2xl font-bold text-white font-serif">Тестирование по специальности</h2>
+                    {candidate?.scores?.checklistScore !== undefined && candidate.scores.checklistScore > 0 && (
+                      <span className="bg-emerald-500/25 text-emerald-300 font-mono text-sm font-black px-3 py-1 rounded-full border border-emerald-500/30">
+                        Результат: {candidate.scores.checklistScore} / 100 баллов!
+                      </span>
+                    )}
+                  </div>
+                  <p className="text-xs text-slate-300 mt-1">
+                    Ниже представлены <strong className="text-[#E7C768]">20 специализированных вопросов от нейронной сети</strong> по направлению <strong>{candidate?.roleName || project?.roleName || "Менеджер по продажам"}</strong>. Мы подготовили для вас качественные ориентировочные ответы, которые вы можете отредактировать под свой личный опыт и знания.
+                  </p>
+                </div>
+
+                {/* 20 Questions interactive forms */}
+                <div className="space-y-4 max-h-[440px] overflow-y-auto pr-2 text-left">
+                  {checklistAnswers.map((item, idx) => (
+                    <div key={idx} className="bg-black/20 p-4 rounded-xl border border-white/5 space-y-2">
+                      <div className="flex gap-2">
+                        <span className="text-xs font-mono font-bold text-[#E7C768] bg-[#E7C768]/10 w-5 h-5 rounded flex items-center justify-center">
+                          {idx + 1}
+                        </span>
+                        <h4 className="text-xs font-bold text-white flex-1">{item.question}</h4>
+                      </div>
+                      <input
+                        type="text"
+                        className="w-full bg-[#17344F] text-xs text-slate-150 p-2 border border-white/10 rounded-lg focus:outline-none focus:border-[#E7C768]"
+                        value={item.answer}
+                        onChange={(e) => {
+                          const updated = [...checklistAnswers];
+                          updated[idx].answer = e.target.value;
+                          setChecklistAnswers(updated);
+                        }}
+                      />
+                    </div>
+                  ))}
+                </div>
+
+                <div className="pt-4 border-t border-white/5 flex flex-col md:flex-row gap-4 items-center justify-between">
+                  <div className="text-xs text-slate-300 text-left">
+                    {checklistFeedback ? (
+                      <div className="p-3 bg-emerald-500/10 border border-emerald-500/25 rounded-xl text-[11px] text-[#A6E22E] max-w-xl">
+                        <strong>Разбор чек-листа:</strong> {checklistFeedback}
+                      </div>
+                    ) : (
+                      "Вы можете отредактировать любой ответ. Когда закончите — отправляйте форму на ИИ-оценку."
+                    )}
+                  </div>
+
+                  <button
+                    onClick={handleEvaluateChecklist}
+                    disabled={checklistAnalysing}
+                    className="cursor-pointer bg-gradient-to-r from-[#FF1A1A] to-[#E54C00] text-white font-bold py-3 px-8 rounded-xl text-xs flex items-center gap-1 hover:opacity-95 shadow shrink-0"
+                  >
+                    {checklistAnalysing ? (
+                      <>
+                        <Loader className="w-4 h-4 animate-spin" /> Рассчитываем баллы...
+                      </>
+                    ) : (
+                      <>
+                        <ShieldCheck className="w-4 h-4" /> Сдать чек-лист на оценку 📝
+                      </>
+                    )}
+                  </button>
+                </div>
+
+                {candidate?.scores?.checklistScore !== undefined && candidate.scores.checklistScore > 0 && (
+                  <div className="pt-4 border-t border-white/10 text-right">
+                    <button
+                      onClick={() => setInterviewSubTab("situations")}
+                      className="cursor-pointer bg-[#1E4468] hover:bg-[#1E4468]/80 text-[#E7C768] font-bold py-2.5 px-5 rounded-xl text-xs inline-flex items-center gap-1.5"
+                    >
+                      Перейти на финальный шаг #3: Ситуации <ArrowRight className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+                )}
+
+              </div>
+            )}
+
+            {/* Sub-tab 3: SITUATIONS (Case Simulator) */}
+            {interviewSubTab === "situations" && (
+              <div className="bg-[#1E4468]/15 border border-white/10 shadow-2xl backdrop-blur-md rounded-3xl p-6 md:p-8 space-y-6">
+                <div className="border-b border-white/5 pb-4 text-left">
+                  <span className="text-[#E7C768] font-bold text-xs uppercase tracking-wider block">Этап #3: Ролевые Ситуации</span>
+                  <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2">
+                    <h2 className="text-2xl font-bold text-white font-serif">Ролевая игра с ИИ-Оппонентом</h2>
+                    {candidate?.scores?.situationsScore !== undefined && candidate.scores.situationsScore > 0 && (
+                      <span className="bg-emerald-500/25 text-emerald-300 font-mono text-sm font-black px-3 py-1 rounded-full border border-emerald-500/30">
+                        Итог за ситуации: {candidate.scores.situationsScore} / 100 баллов
+                      </span>
+                    )}
+                  </div>
+                  <p className="text-xs text-slate-300 mt-1">
+                    Ниже представлены <strong className="text-[#E7C768]">3 практических профессиональных кейса</strong>. Кликните на интересующий вас кейс справа, напишите ваш ответ боту на его каверзный вопрос в поле переписки, и отправьте на скоринг. 
+                  </p>
+                </div>
+
+                {/* Main Simulator split grids */}
+                <div className="grid grid-cols-1 md:grid-cols-12 gap-6 items-stretch">
+                  
+                  {/* Left Column: List of 3 Cases */}
+                  <div className="md:col-span-4 flex flex-col gap-3 text-left">
+                    {situationsList.map((sit, idx) => {
+                      const isActive = activeSitIdx === idx;
+                      return (
+                        <div
+                          key={sit.id}
+                          onClick={() => setActiveSitIdx(idx)}
+                          className={`cursor-pointer p-3.5 rounded-xl border transition-all duration-150 ${
+                            isActive
+                              ? "bg-amber-950/20 border-[#E7C768] shadow"
+                              : "bg-black/25 border-white/5 hover:bg-[#1E4468]/30"
+                          }`}
+                        >
+                          <div className="flex items-center justify-between">
+                            <span className="text-[9px] font-mono font-bold text-[#E7C768] uppercase bg-[#E7C768]/15 px-1.5 py-0.5 rounded">
+                              Кейс {idx + 1}
+                            </span>
+                            {sit.submitted && (
+                              <span className="text-[10px] font-bold font-mono text-emerald-400">
+                                ⭐ {sit.score} б.
+                              </span>
+                            )}
+                          </div>
+                          <h4 className="font-bold text-xs text-white mt-1.5">{sit.title}</h4>
+                          <p className="text-[10px] text-slate-400 mt-1 line-clamp-2 leading-tight">
+                            {sit.desc}
+                          </p>
+                        </div>
+                      );
+                    })}
+
+                    <div className="mt-4 bg-emerald-500/10 p-3.5 rounded-xl border border-emerald-500/20 text-xs">
+                      <Mascot state="recruitment" size="sm" className="mx-auto" />
+                      <p className="text-[10px] text-slate-200 mt-1 text-center font-normal">
+                        Обыграйте все 3 ситуации с роботом, чтобы выставить максимальный итоговый балл!
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* Right Column: Chat Dialog Box with simulator */}
+                  <div className="md:col-span-8 bg-black/35 rounded-2xl border border-white/10 flex flex-col justify-between overflow-hidden min-h-[400px]">
+                    
+                    {/* Head */}
+                    <div className="bg-[#1E4468]/50 p-3 border-b border-white/5 flex items-center justify-between text-left">
+                      <div>
+                        <h4 className="font-bold text-xs text-[#E7C768]">
+                          {situationsList[activeSitIdx]?.title || "Загрузка кейса..."}
+                        </h4>
+                        <span className="text-[9px] text-slate-400 italic">
+                          Оппонент: ИИ-Симулятор робота
+                        </span>
+                      </div>
+                      {situationsList[activeSitIdx]?.submitted && (
+                        <span className="text-[10px] bg-emerald-500/20 text-emerald-300 font-bold px-2 py-0.5 rounded-full font-mono">
+                          Оценка кейса: {situationsList[activeSitIdx].score} баллов.
+                        </span>
+                      )}
+                    </div>
+
+                    {/* Scenario briefing Box */}
+                    <div className="p-3 bg-white/5 border-b border-white/5 text-left text-[11px] text-slate-300">
+                      <strong>Описание ситуации: </strong> {situationsList[activeSitIdx]?.desc}
+                    </div>
+
+                    {/* Chat container */}
+                    <div className="flex-1 overflow-y-auto p-4 space-y-3.5">
+                      {situationsList[activeSitIdx]?.transcript.map((item: any, i: number) => {
+                        const isBot = item.sender === "bot";
+                        return (
+                          <div key={i} className={`flex ${isBot ? "justify-start" : "justify-end"}`}>
+                            <div
+                              className={`max-w-md p-3 rounded-xl text-xs leading-relaxed space-y-1 ${
+                                isBot
+                                  ? "bg-black/50 text-white border border-white/10 text-left rounded-tl-none font-normal"
+                                  : "bg-[#1E4468] text-white text-left rounded-tr-none font-bold shadow"
+                              }`}
+                            >
+                              <p className="whitespace-pre-wrap">{item.text}</p>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+
+                    {/* Input interaction bar */}
+                    <div className="p-3 border-t border-white/5 bg-black/45">
+                      {situationsList[activeSitIdx]?.submitted ? (
+                        <div className="text-center py-2 text-xs text-emerald-400 font-mono font-bold uppercase tracking-wider">
+                          ✅ Кейс {activeSitIdx + 1} успешно сдан и оценён!
+                        </div>
+                      ) : (
+                        <div className="flex gap-2">
+                          <input
+                            type="text"
+                            placeholder="Напишите ваш подробный профессиональный ответ..."
+                            className="flex-1 bg-black/45 border border-white/10 px-3 py-2 rounded-lg text-xs text-white focus:outline-none focus:border-[#E7C768]"
+                            value={activeSitTextInput}
+                            onChange={(e) => setActiveSitTextInput(e.target.value)}
+                            onKeyDown={(e) => e.key === "Enter" && handleSendSituationMessage(activeSitIdx)}
+                            disabled={sitEvaluatingId !== null}
+                          />
+                          <button
+                            onClick={() => handleSendSituationMessage(activeSitIdx)}
+                            disabled={sitEvaluatingId !== null}
+                            className="cursor-pointer bg-gradient-to-r from-[#FF1A1A] to-[#E54C00] text-white px-4 py-2 rounded-lg text-xs font-bold hover:opacity-95 transition-all flex items-center gap-1 shadow shrink-0"
+                          >
+                            {sitEvaluatingId === situationsList[activeSitIdx]?.id ? (
+                              <Loader className="w-3.5 h-3.5 animate-spin" />
+                            ) : (
+                              "Отправить 🚀"
+                            )}
+                          </button>
+                        </div>
+                      )}
+                    </div>
+
+                  </div>
+
+                </div>
+
+                {/* Footer action */}
+                <div className="pt-6 border-t border-white/5 flex flex-col md:flex-row justify-between items-center gap-4 text-left">
+                  <span className="text-xs text-slate-400 italic">
+                    Завершили диалоги во всех кейсах? Нажмите финальную кнопку для автоматического сведения и перехода к обзору итоговых оценок.
+                  </span>
+                  <button
+                    onClick={handleFinishRoleplay}
+                    disabled={situationsAnalysing}
+                    className="cursor-pointer bg-[#FF1A1A] hover:bg-[#E54C00] text-white font-extrabold px-6 py-3 rounded-xl text-xs flex items-center gap-1.5 transition shadow-lg active:scale-98"
+                  >
+                    {situationsAnalysing ? (
+                      <>
+                        <Loader className="w-4 h-4 animate-spin" /> Рассчитываем итоговую матрицу...
+                      </>
+                    ) : (
+                      <>
+                        <Award className="w-4 h-4" /> Завершить и показать оценку 🎯
+                      </>
+                    )}
+                  </button>
+                </div>
+
+              </div>
+            )}
 
           </div>
         )}
 
-        {/* STEP 3: SCORE PORTAL DETAILS */}
-        {currentStage === "scoring" && (
+
+
+        {/* Tab 4: Evaluation scoring tab */}
+        {activeTab === "scoring" && (
           <div className="bg-[#1E4468]/15 border border-white/10 shadow-2xl backdrop-blur-md rounded-3xl p-6 md:p-8 space-y-6 text-center max-w-2xl mx-auto">
             <Mascot state="serious" size="lg" />
             
             <div>
               <span className="bg-[#E7C768] text-[#1A1A1A] font-bold text-[10px] px-3 py-1 rounded-full uppercase tracking-wider inline-block">ИИ Оценка Завершена!</span>
-              <h2 className="text-2xl font-bold text-[#E7C768] mt-2">Результаты вашего тестирования</h2>
-              <p className="text-xs text-gray-300 mt-1">Оценка сведена в баллах на основе ответов на опрос и разбора вашего резюме.</p>
+              <h2 className="text-2xl font-bold text-[#E7C768] mt-2 font-serif">Результаты вашего тестирования</h2>
+              <p className="text-xs text-gray-300 mt-1 font-normal">Оценка сведена в баллах на основе ответов на опрос и разбора вашего резюме.</p>
             </div>
 
             {/* Score Ring indicator */}
@@ -689,19 +1775,44 @@ export default function CandidateFlow() {
               </div>
             </div>
 
+            {/* Grid details checklist score elements */}
+            <div className="grid grid-cols-3 gap-3.5 max-w-lg mx-auto">
+              <div className="bg-black/25 p-3 rounded-xl border border-[#FAFAFA]/5 text-center flex flex-col justify-between">
+                <span className="text-[9px] text-slate-300 uppercase font-semibold font-mono block">1. Резюме</span>
+                <strong className="text-[#E7C768] font-extrabold text-lg block mt-1">
+                  {candidate?.scores?.resumeScore !== undefined ? candidate.scores.resumeScore : 70}/100
+                </strong>
+              </div>
+              <div className="bg-black/25 p-3 rounded-xl border border-[#FAFAFA]/5 text-center flex flex-col justify-between">
+                <span className="text-[9px] text-slate-300 uppercase font-semibold font-mono block">2. Чек-лист</span>
+                <strong className="text-[#E7C768] font-extrabold text-lg block mt-1">
+                  {candidate?.scores?.checklistScore !== undefined ? candidate.scores.checklistScore : 80}/100
+                </strong>
+              </div>
+              <div className="bg-[#101010]/35 p-3 rounded-xl border border-[#FAFAFA]/5 text-center flex flex-col justify-between">
+                <span className="text-[9px] text-slate-300 uppercase font-semibold font-mono block">3. Ситуации</span>
+                <strong className="text-[#E7C768] font-extrabold text-lg block mt-1">
+                  {candidate?.scores?.situationsScore !== undefined ? candidate.scores.situationsScore : 75}/100
+                </strong>
+              </div>
+            </div>
+
             {/* Assessment critique */}
             <div className="bg-black/45 p-5 rounded-2xl text-left border border-white/10 space-y-2">
               <span className="text-xs font-bold text-[#E7C768] uppercase flex items-center gap-1">
                 <Cpu className="w-4 h-4 text-[#E7C768]" /> Разбор ваших навыков ИИ Роботом:
               </span>
-              <p className="text-xs text-gray-200 leading-relaxed italic">
+              <p className="text-xs text-gray-200 leading-relaxed italic font-normal">
                 "{candidate?.scores?.assessmentSummary || "Кандидат продемонстрировал хорошие базовые результаты на собеседовании. Выявлены отличные черты коммуникатора. Следующий шаг - изучение специфики нашего продукта и преодоление пробелов в знаниях."}"
               </p>
             </div>
 
             {/* Training action CTA */}
             <button
-              onClick={() => updateStageOnBackend("training")}
+              onClick={() => {
+                updateStageOnBackend("training");
+                setActiveTab("training");
+              }}
               className="cursor-pointer w-full bg-gradient-to-r from-[#FF1A1A] to-[#E54C00] text-white font-bold py-3.5 rounded-xl text-center shadow-lg transition flex items-center justify-center gap-2"
             >
               Открыть персональный курс ИИ-обучения <ArrowRight className="w-4.5 h-4.5" />
@@ -709,47 +1820,71 @@ export default function CandidateFlow() {
           </div>
         )}
 
-        {/* STEP 4: TRAINING LESSON PANELS & INTERACTIVE QUIZZES */}
-        {currentStage === "training" && (
+        {/* Tab 5: Training interactive program */}
+        {activeTab === "training" && (
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
             
-            {/* Left side Lesson navigator */}
+            {/* Left side Sub tabs */}
             <aside className="lg:col-span-4 bg-[#1E4468]/15 border border-white/10 backdrop-blur-md rounded-3xl p-5 shadow-xl space-y-4">
-              <h3 className="font-bold text-xs text-[#E7C768] uppercase tracking-wider flex items-center gap-1">
-                <BookOpen className="w-4 h-4 text-[#E7C768]" /> Учебная Траектория
+              <h3 className="font-bold text-xs text-[#E7C768] uppercase tracking-wider flex items-center gap-1 border-b border-[#E7C768]/10 pb-2 text-left">
+                <BookOpen className="w-4 h-4 text-[#E7C768]" /> Разделы Обучения
               </h3>
               
-              <div className="space-y-2 text-xs">
-                {candidate?.trainingPlan?.map((block, bIdx) => (
-                  <div key={bIdx} className="space-y-1">
-                    <span className="text-[10px] font-bold text-gray-400 block uppercase font-mono">Блок {bIdx + 1}:</span>
+              <div className="flex flex-col gap-2">
+                {[
+                  { id: "professional", title: "💼 Профессиональное обучение", desc: "Устранение слабых сторон" },
+                  { id: "product", title: "🎁 Обучение продукту", desc: "Что и как продаем" },
+                  { id: "system", title: "⚙️ Обучение системе", desc: "Процессы и регламенты" }
+                ].map((subTab) => {
+                  const isSelected = trainingSubTab === subTab.id;
+                  return (
                     <button
+                      type="button"
+                      key={subTab.id}
                       onClick={() => {
-                        setActiveBlockIdx(bIdx);
-                        setActiveLessonIdx(0);
+                        setTrainingSubTab(subTab.id);
+                        setSelectedQuizIdx(null);
+                        setQuizSubmitted(false);
+                        setQuizMessage("");
                       }}
-                      className={`cursor-pointer w-full text-left font-bold p-3 rounded-xl border text-xs transition duration-150 ${
-                        activeBlockIdx === bIdx 
-                          ? "bg-[#1E4468] text-white border-[#E7C768] shadow" 
-                          : "bg-white/5 text-gray-300 hover:bg-white/10 border-white/5"
+                      className={`cursor-pointer w-full text-left p-3.5 rounded-xl border transition duration-150 flex flex-col ${
+                        isSelected
+                          ? "bg-[#E7C768] text-[#17344F] border-[#E7C768] shadow font-bold"
+                          : "bg-white/5 border-white/5 text-slate-300 hover:bg-white/10"
                       }`}
                     >
-                      {block.title}
+                      <span className="text-xs">{subTab.title}</span>
+                      <span className={`text-[10px] font-normal ${isSelected ? "text-[#17344F]/80" : "text-gray-400"}`}>{subTab.desc}</span>
                     </button>
-                  </div>
-                ))}
+                  );
+                })}
+              </div>
+
+              <div className="hidden lg:block bg-black/35 p-4 rounded-2xl border border-white/5 text-xs text-center space-y-2">
+                <Cpu className="w-5 h-5 text-[#E7C768] mx-auto animate-pulse" />
+                <span className="font-bold text-[11px] text-[#E7C768] uppercase block">Умный ИИ-контроль</span>
+                <p className="text-[10px] text-slate-300 leading-relaxed font-normal">План обучения подобран нейросетью специально на основе вашего резюме и ответов на собеседовании.</p>
               </div>
             </aside>
 
-            {/* Main Lesson Reader panel */}
-            <main className="lg:col-span-8 bg-[#1E4468]/15 backdrop-blur-md border border-white/10 rounded-3xl shadow-2xl overflow-hidden">
-              {candidate?.trainingPlan && candidate.trainingPlan[activeBlockIdx] ? (
+            {/* Main Lesson Reader content card */}
+            <main className="lg:col-span-8 bg-[#1E4468]/15 backdrop-blur-md border border-white/10 rounded-3xl shadow-2xl overflow-hidden min-h-[420px]">
+              {candidate?.trainingPlan && candidate.trainingPlan.length > 0 ? (
                 (() => {
-                  const block = candidate.trainingPlan[activeBlockIdx];
-                  const lesson = block.lessons[activeLessonIdx];
+                  const bIdx = getTrainingBlockIdx();
+                  // Check if this block index is valid
+                  const block = candidate.trainingPlan[bIdx] || candidate.trainingPlan[0];
+                  if (!block) {
+                    return (
+                      <div className="p-12 text-center text-gray-400">
+                        <p className="text-xs">Для Вас готовится индивидуальный план обучения роботом. Ожидайте...</p>
+                      </div>
+                    );
+                  }
+                  const lesson = block.lessons[activeLessonIdx] || block.lessons[0];
 
                   return (
-                    <div className="p-6 md:p-8 space-y-6">
+                    <div className="p-6 md:p-8 space-y-6 text-left">
                       {/* Lesson title bar */}
                       <div className="border-b border-white/10 pb-4">
                         <span className="text-[10px] uppercase font-mono font-bold text-[#E7C768] tracking-wider block bg-[#1E4468]/80 w-max px-2.5 py-0.5 rounded border border-white/10">
@@ -760,7 +1895,7 @@ export default function CandidateFlow() {
                       </div>
 
                       {/* Content panel */}
-                      <div className="bg-black/35 p-6 rounded-2xl border border-white/10 text-xs text-gray-200 leading-relaxed font-normal whitespace-pre-wrap">
+                      <div className="bg-black/35 p-6 rounded-2xl border border-white/10 text-xs text-gray-250 leading-relaxed font-normal whitespace-pre-wrap">
                         {lesson.content}
                       </div>
 
@@ -769,7 +1904,7 @@ export default function CandidateFlow() {
                         <div className="space-y-4 border-t border-white/10 pt-6">
                           <div className="flex items-center gap-2">
                             <HelpCircle className="w-5 h-5 text-[#E7C768]" />
-                            <h4 className="font-bold text-xs text-[#E7C768] uppercase">Проверочный Вопрос Робота (Квиз):</h4>
+                            <h4 className="font-bold text-xs text-[#E7C768] uppercase">Проверочный Вопрос ИИ-Робота:</h4>
                           </div>
 
                           <div className="space-y-2">
@@ -783,7 +1918,6 @@ export default function CandidateFlow() {
                                     key={oIdx}
                                     type="button"
                                     onClick={() => !quizSubmitted && setSelectedQuizIdx(oIdx)}
-                                    disabled={quizSubmitted && lesson.isCompleted}
                                     className={`cursor-pointer w-full text-left text-xs p-3.5 rounded-xl border transition-all ${
                                       isSelected
                                         ? "bg-[#1E4468] text-white border-[#E7C768]"
@@ -800,7 +1934,7 @@ export default function CandidateFlow() {
                           {/* Quiz notification message banner */}
                           {quizMessage && (
                             <div className={`p-4 text-xs rounded-xl border ${quizError ? "bg-[#FF4C4C]/10 text-[#FF4C4C] border-[#FF4C4C]/20" : "bg-emerald-950/40 text-emerald-400 border border-emerald-500/20"}`}>
-                              {quizMessage}
+                               {quizMessage}
                             </div>
                           )}
 
@@ -820,7 +1954,7 @@ export default function CandidateFlow() {
                               <button
                                 type="button"
                                 onClick={handleNextLesson}
-                                className="cursor-pointer bg-[#1E4468] hover:bg-[#1E4468]/95 text-white font-bold py-2.5 px-6 rounded-xl text-xs flex items-center gap-1 hover:shadow"
+                                className="cursor-pointer bg-[#E7C768] text-[#17344F] font-bold py-2.5 px-6 rounded-xl text-xs flex items-center gap-1 hover:shadow"
                               >
                                 Далее <ArrowRight className="w-4 h-4" />
                               </button>
@@ -832,18 +1966,20 @@ export default function CandidateFlow() {
                   );
                 })()
               ) : (
-                <div className="p-12 text-center text-gray-400">
-                  <Loader className="w-8 h-8 animate-spin mx-auto text-gray-300" />
-                  <p className="text-xs mt-2">Загружаем ваш курс обучения от Робота Рекрутера...</p>
+                <div className="p-12 text-center text-slate-300 flex flex-col justify-center items-center">
+                  <div className="animate-spin text-[#E7C768] mb-2">
+                    <RefreshCw className="w-8 h-8" />
+                  </div>
+                  <p className="text-xs font-semibold">Ваша индивидуальная программа обучения генерируется ИИ Роботом Рекрутером...</p>
+                  <p className="text-[10px] text-slate-400 mt-1">Ответы на собеседовании анализируются для выявления пробелов.</p>
                 </div>
               )}
             </main>
-
           </div>
         )}
 
-        {/* STEP 5: CERTIFICATE ISSUED SUCCESS AREA */}
-        {currentStage === "certified" && (
+        {/* Tab 6: Certified diploma success tab */}
+        {activeTab === "certified" && (
           <div className="space-y-8 max-w-2xl mx-auto">
             
             {/* Visual Issued Certificate styled like a physical luxury diploma */}
@@ -863,7 +1999,7 @@ export default function CandidateFlow() {
               {/* Certificate Head */}
               <div className="space-y-2 relative z-10">
                 <img src="https://i.ibb.co/WWRbtPq0/RR-Logo.png" alt="RR Logo" className="w-16 h-16 object-contain mx-auto drop-shadow" />
-                <h1 className="text-xs uppercase tracking-[0.2em] font-bold text-[#E7C768]">
+                <h1 className="text-xs uppercase tracking-[0.2em] font-bold text-[#E7C768] font-serif">
                   Сертификат Соответствия Квалификации
                 </h1>
                 <div className="text-[10px] text-gray-400 font-serif italic">Выдан платформой автоматического онбординга Робот Рекрутер (RR)</div>
@@ -873,13 +2009,13 @@ export default function CandidateFlow() {
               <div className="w-32 h-0.5 bg-gradient-to-r from-transparent via-[#E7C768] to-transparent mx-auto my-6"></div>
 
               {/* Certification Statement */}
-              <div className="space-y-6 relative z-10">
+              <div className="space-y-6 relative z-10 text-center">
                 <p className="text-xs text-gray-300 font-serif italic">Настоящим подтверждается, что соискатель</p>
                 <div className="text-2xl md:text-3xl font-black tracking-tight text-[#E7C768] font-serif">
                   {candidate?.name || "Иван Иванов"}
                 </div>
                 
-                <p className="text-xs text-gray-300 leading-relaxed max-w-md mx-auto">
+                <p className="text-xs text-gray-300 leading-relaxed max-w-md mx-auto font-normal">
                   Успешно завершил индивидуальную программу скрининга, кейс-собеседование ИИ и обучающий экспресс-курс подготовки по должности
                 </p>
 
@@ -895,10 +2031,10 @@ export default function CandidateFlow() {
               {/* Stamps and Signatures */}
               <div className="mt-10 grid grid-cols-2 gap-8 items-end relative z-10 text-left px-4">
                 <div className="space-y-1">
-                  <div className="text-[9px] uppercase tracking-wider text-gray-400">Выдан Почтой:</div>
+                  <div className="text-[9px] uppercase tracking-wider text-gray-400">Выдан Системой:</div>
                   <div className="text-[11px] font-bold font-mono text-[#E7C768]">HR-RR.ru (ИИ Аудит)</div>
                   <div className="w-24 h-px bg-white/20"></div>
-                  <div className="text-[9px] text-gray-400">Уполномоченная подпись системного робота</div>
+                  <div className="text-[9px] text-gray-400 font-normal">Уполномоченная подпись системного робота</div>
                 </div>
 
                 <div className="text-right flex flex-col items-end">
@@ -913,12 +2049,19 @@ export default function CandidateFlow() {
 
             </div>
 
+            {/* State message banner */}
+            {certSavedMsg && (
+              <div className="p-3 bg-emerald-500/20 text-emerald-200 border border-emerald-500/30 text-xs font-bold rounded-xl text-center">
+                {certSavedMsg}
+              </div>
+            )}
+
             {/* Actions list */}
             <div className="space-y-3">
               <button
                 onClick={() => {
-                  alert("Диплом успешно сохранен на ваше устройство! Ссылка отправлена работодателю в CRM.");
-                  updateStageOnBackend("certified");
+                  setCertSavedMsg("🏆 Сертификат соответствия сохранен в ваше ИИ-портфолио и продублирован нанимателям в CRM!");
+                  setTimeout(() => setCertSavedMsg(""), 5000);
                 }}
                 className="cursor-pointer w-full bg-gradient-to-r from-[#FF1A1A] to-[#E54C00] text-white font-bold py-3.5 rounded-xl text-center shadow-lg transition flex items-center justify-center gap-2"
               >
@@ -945,6 +2088,92 @@ export default function CandidateFlow() {
       <footer className="py-4 text-center text-xs text-gray-400 border-t border-white/5 bg-[#1A1A1A]">
         HR-RR.ru © 2026 Робот Рекрутер. Система обучения соискателей.
       </footer>
+
+      {/* Floating AI Assistant Widget in the bottom-right corner of every sub-page */}
+      <div className="fixed bottom-6 right-6 z-50">
+        
+        {/* Pulsing highlight */}
+        {!assistOpen && (
+          <div className="absolute top-0 right-0 w-3.5 h-3.5 bg-[#E7C768] rounded-full animate-ping"></div>
+        )}
+
+        {/* Circular Trigger button */}
+        <button
+          type="button"
+          onClick={() => setAssistOpen(!assistOpen)}
+          className="cursor-pointer w-14 h-14 bg-gradient-to-tr from-[#FF1A1A] to-[#E54C00] hover:from-[#FF3333] hover:to-[#FF5500] text-white rounded-full flex items-center justify-center shadow-2xl transition duration-200 transform hover:scale-105 active:scale-95 border-2 border-white/20"
+        >
+          {assistOpen ? <X className="w-6 h-6 animate-spin-once" /> : <MessageSquare className="w-6 h-6" />}
+        </button>
+
+        {/* Dialog Window */}
+        {assistOpen && (
+          <div className="absolute bottom-18 right-0 w-80 md:w-96 bg-[#17344F]/95 backdrop-blur border border-white/20 shadow-2xl rounded-2xl flex flex-col overflow-hidden">
+            {/* Header */}
+            <div className="p-4 bg-gradient-to-r from-[#17344F] to-[#1E4468] border-b border-white/10 flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <div className="w-8 h-8 rounded-full bg-[#E7C768]/20 flex items-center justify-center border border-[#E7C768]/40">
+                  <Cpu className="w-4 h-4 text-[#E7C768]" />
+                </div>
+                <div className="text-left">
+                  <h4 className="font-bold text-xs text-white">ИИ-Помощник соискателя ⚡</h4>
+                  <span className="text-[9px] text-[#E7C768]">Робот RR всегда онлайн</span>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setAssistOpen(false)}
+                className="text-gray-400 hover:text-white transition"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            {/* Content History area */}
+            <div className="p-3 space-y-3 max-h-64 overflow-y-auto bg-black/25 flex flex-col text-left">
+              {assistHistory.map((msg, idx) => {
+                const isAI = msg.sender === "ai";
+                return (
+                  <div key={idx} className={`flex ${isAI ? "justify-start" : "justify-end"}`}>
+                    <div className={`p-2.5 rounded-xl text-[11px] leading-relaxed max-w-[85%] font-normal ${
+                      isAI 
+                        ? "bg-[#1E4468]/65 text-white border border-white/5 rounded-tl-none" 
+                        : "bg-gradient-to-r from-[#FF1A1A] to-[#E54C00] text-white rounded-tr-none"
+                    }`}>
+                      {msg.text}
+                    </div>
+                  </div>
+                );
+              })}
+              {assistLoading && (
+                <div className="flex justify-start items-center gap-1.5 text-[10px] text-gray-400">
+                  <Loader className="w-3.5 h-3.5 animate-spin" />
+                  <span>ИИ Робот размышляет...</span>
+                </div>
+              )}
+            </div>
+
+            {/* Footer Input form */}
+            <div className="p-3 border-t border-white/10 bg-black/45 flex gap-2">
+              <input
+                type="text"
+                placeholder="Задать любой вопрос по разделу..."
+                className="flex-1 bg-black/35 text-white text-xs px-3 py-2 rounded-xl focus:outline-none focus:border-[#E7C768] placeholder-gray-400"
+                value={assistTextInput}
+                onChange={(e) => setAssistTextInput(e.target.value)}
+                onKeyDown={(e) => e.key === "Enter" && handleSendAssist()}
+              />
+              <button
+                type="button"
+                onClick={handleSendAssist}
+                className="cursor-pointer bg-[#E7C768] hover:bg-[#E7C768]/90 text-[#17344F] p-2 rounded-xl transition"
+              >
+                <Send className="w-3.5 h-3.5" />
+              </button>
+            </div>
+          </div>
+        )}
+      </div>
 
     </div>
   );

@@ -36,6 +36,8 @@ export interface CandidateScores {
   roleplayPoints: number;  // 0-10
   overallScore: number;   // 0-100
   assessmentSummary: string;
+  checklistScore?: number; // 0-100
+  situationsScore?: number; // 0-100
 }
 
 export interface Candidate {

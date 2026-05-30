@@ -9,7 +9,6 @@ import Mascot from "../components/Mascot";
 import { JobProject, Candidate, BASIC_SPECIALTIES } from "../types";
 import {
   Users,
-  Database,
   Smartphone,
   Plus,
   Send,
@@ -37,7 +36,7 @@ export default function EmployerPanel() {
   const [tgMsgLog, setTgMsgLog] = useState<{ id: string; chatId: string; message: string; timestamp: string }[]>([]);
   const [aiStatus, setAiStatus] = useState({ active: true, model: "" });
 
-  const [activeTab, setActiveTab] = useState<"crm" | "setup" | "supabase" | "telegram">("crm");
+  const [activeTab, setActiveTab] = useState<"crm" | "setup" | "telegram">("crm");
 
   // Local form state for custom creation
   const [setupCompanyName, setSetupCompanyName] = useState("Мой Бизнес");
@@ -55,16 +54,6 @@ export default function EmployerPanel() {
 
   const [copiedProjectId, setCopiedProjectId] = useState<string | null>(null);
   const [isGenerating, setIsGenerating] = useState(false);
-  const [supConnectionMsg, setSupConnectionMsg] = useState("");
-
-  const [supabaseConfig, setSupabaseConfig] = useState(() => {
-    return {
-      url: localStorage.getItem("sup_url") || "https://hr-rr-default.supabase.co",
-      anonKey: localStorage.getItem("sup_anon_key") || "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.example",
-      serviceRoleKey: localStorage.getItem("sup_service_key") || "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.example_service",
-      isConnected: localStorage.getItem("sup_connected") === "true"
-    };
-  });
 
   // Fetch initial data
   const fetchData = async () => {
@@ -173,24 +162,6 @@ export default function EmployerPanel() {
   const saveTgId = () => {
     localStorage.setItem("employer_tg_id", adminTgId);
     alert("Telegram ID сохранен! Теперь бот @HR_RRbot будет писать на этот код.");
-  };
-
-  // Test Supabase connection
-  const handleTestSupabase = () => {
-    if (!supabaseConfig.url.startsWith("https://")) {
-      setSupConnectionMsg("⚠️ Ошибка: URL должен начинаться с https://");
-      return;
-    }
-    if (supabaseConfig.url && supabaseConfig.anonKey && supabaseConfig.serviceRoleKey) {
-      setSupabaseConfig(prev => ({ ...prev, isConnected: true }));
-      localStorage.setItem("sup_url", supabaseConfig.url);
-      localStorage.setItem("sup_anon_key", supabaseConfig.anonKey);
-      localStorage.setItem("sup_service_key", supabaseConfig.serviceRoleKey);
-      localStorage.setItem("sup_connected", "true");
-      setSupConnectionMsg("✅ Соединение успешно установлено! Таблицы в Supabase готовы к модификациям.");
-    } else {
-      setSupConnectionMsg("⚠️ Пожалуйста, внесите все 3 требуемых поля.");
-    }
   };
 
   // Specialties cloud filter
@@ -403,18 +374,6 @@ export default function EmployerPanel() {
               >
                 <Plus className="w-4 h-4 text-[#D99E41]" />
                 Создать онбординг (ИИ)
-              </button>
-
-              <button
-                onClick={() => setActiveTab("supabase")}
-                className={`cursor-pointer w-full text-left font-bold text-xs px-4 py-3 rounded-xl flex items-center gap-2.5 transition-all ${
-                  activeTab === "supabase"
-                    ? "bg-[#1E4468] text-[#E7C768] border-2 border-[#E7C768] shadow"
-                    : "bg-white/5 text-slate-300 hover:bg-white/10 border border-white/10"
-                }`}
-              >
-                <Database className="w-4 h-4 text-[#D99E41]" />
-                Подключение Supabase
               </button>
 
               <button
@@ -790,138 +749,6 @@ export default function EmployerPanel() {
                 </button>
 
               </form>
-            </div>
-          )}
-
-          {/* TAB 3: SUPABASE INTEGRATION BLUEPRINT */}
-          {activeTab === "supabase" && (
-            <div className="bg-[#1D3E5E]/85 border border-white/15 rounded-3xl p-6 shadow-xl space-y-6 text-white text-left">
-              <div className="flex items-center gap-3 border-b border-white/10 pb-4">
-                <div className="w-12 h-12 rounded-2xl bg-white/5 border border-white/10 flex items-center justify-center text-[#E7C768]">
-                  <Database className="w-6 h-6" />
-                </div>
-                <div>
-                  <h2 className="text-lg font-bold text-[#E7C768]">Интеграция с Базой Данных Supabase</h2>
-                  <p className="text-xs text-slate-300">
-                    Настройте постоянное хранение данных соискателей в вашем облаке Supabase.
-                  </p>
-                </div>
-              </div>
-
-              {/* Informative credentials instruction block */}
-              <div className="space-y-4">
-                <div className="bg-[#17344F]/60 p-4 rounded-2xl border border-white/10 space-y-2">
-                  <h3 className="text-xs font-bold text-[#E7C768] uppercase tracking-wider">Сведения для интеграции</h3>
-                  <p className="text-xs text-slate-200 leading-normal">
-                    Чтобы Робот Рекрутер (RR) синхронизировал резюме, баллы и сессии в реальном режиме, укажите параметры доступа:
-                  </p>
-                  
-                  <div className="space-y-3 pt-2 text-xs text-slate-300">
-                    <div>
-                      <strong className="text-white block">1. SUPABASE_URL</strong>
-                      <span className="text-[11px] text-slate-400">URL-адрес вашего проекта. Находится в меню: <strong>Settings &gt; API</strong></span>
-                    </div>
-
-                    <div>
-                      <strong className="text-white block">2. SUPABASE_ANON_KEY</strong>
-                      <span className="text-[11px] text-slate-400">Публичный ключ (anon) клиента.</span>
-                    </div>
-
-                    <div>
-                      <strong className="text-white block">3. SUPABASE_SERVICE_ROLE_KEY</strong>
-                      <span className="text-[11px] text-slate-400">Приватный сервисный ключ для гарантированного сохранения транзакций.</span>
-                    </div>
-                  </div>
-                </div>
-
-                {/* API Key settings panel simulation */}
-                <div className="space-y-4 border border-white/10 p-5 rounded-2xl bg-[#17344F]/40">
-                  <h3 className="font-bold text-sm text-[#E7C768]">Параметры соединения</h3>
-
-                  <div className="space-y-3">
-                    <div className="space-y-1">
-                      <label className="text-xs font-bold text-slate-200 block">Supabase URL:</label>
-                      <input
-                        type="text"
-                        className="w-full bg-[#17344F]/80 text-xs font-mono p-2.5 rounded-lg border border-white/10 text-white focus:outline-none focus:border-[#E7C768] transition"
-                        value={supabaseConfig.url}
-                        onChange={(e) => setSupabaseConfig(prev => ({ ...prev, url: e.target.value }))}
-                      />
-                    </div>
-
-                    <div className="space-y-1">
-                      <label className="text-xs font-bold text-slate-200 block">Supabase Anon Key:</label>
-                      <input
-                        type="password"
-                        className="w-full bg-[#17344F]/80 text-xs font-mono p-2.5 rounded-lg border border-white/10 text-white focus:outline-none focus:border-[#E7C768] transition"
-                        value={supabaseConfig.anonKey}
-                        onChange={(e) => setSupabaseConfig(prev => ({ ...prev, anonKey: e.target.value }))}
-                      />
-                    </div>
-
-                    <div className="space-y-1">
-                      <label className="text-xs font-bold text-slate-200 block">Supabase Service Role Key:</label>
-                      <input
-                        type="password"
-                        className="w-full bg-[#17344F]/80 text-xs font-mono p-2.5 rounded-lg border border-white/10 text-white focus:outline-none focus:border-[#E7C768] transition"
-                        value={supabaseConfig.serviceRoleKey}
-                        onChange={(e) => setSupabaseConfig(prev => ({ ...prev, serviceRoleKey: e.target.value }))}
-                      />
-                    </div>
-                  </div>
-
-                  {supConnectionMsg && (
-                    <div className={`p-3 text-xs rounded-xl border ${supabaseConfig.isConnected ? "bg-emerald-500/20 text-emerald-200 border-emerald-500/30" : "bg-red-500/20 text-red-100 border-red-500/30"}`}>
-                      {supConnectionMsg}
-                    </div>
-                  )}
-
-                  <button
-                    type="button"
-                    onClick={handleTestSupabase}
-                    className="cursor-pointer bg-gradient-to-r from-[#FF1A1A] to-[#E54C00] text-white font-bold text-xs py-2.5 px-4 rounded-xl hover:opacity-95 transition"
-                  >
-                    Проверить API соединение с Supabase
-                  </button>
-                </div>
-
-                {/* Database tables creation DDL guidelines */}
-                <div className="space-y-2">
-                  <h4 className="text-xs font-bold text-[#E7C768]">Скрипт SQL DDL для вашего SQL Editor:</h4>
-                  <pre className="bg-[#17344F]/90 border border-white/10 text-emerald-400 text-[10px] p-4 rounded-xl overflow-x-auto font-mono text-left leading-relaxed">
-{`-- 1. Таблица проектов вакансий
-CREATE TABLE IF NOT EXISTS projects (
-  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
-  company_name TEXT NOT NULL,
-  role_name TEXT NOT NULL,
-  salary_terms TEXT,
-  schedule_terms TEXT,
-  motivation_text TEXT,
-  custom_wiki TEXT,
-  checklist_questions TEXT[],
-  roleplay_questions TEXT[],
-  created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now())
-);
-
--- 2. Таблица соискателей и ИИ аналитики
-CREATE TABLE IF NOT EXISTS candidates (
-  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
-  name TEXT NOT NULL,
-  email TEXT NOT NULL UNIQUE,
-  telegram_username TEXT,
-  telegram_id TEXT,
-  project_id UUID REFERENCES projects(id) ON DELETE CASCADE,
-  role_name TEXT,
-  current_stage TEXT DEFAULT 'terms',
-  resume_name TEXT,
-  scores JSONB,
-  training_plan JSONB,
-  created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now())
-);`}
-                  </pre>
-                </div>
-
-              </div>
             </div>
           )}
 
