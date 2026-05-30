@@ -91,14 +91,34 @@ export default function AuthPage() {
 
       } else {
         // Registering as Employer
+        const payload = {
+          name,
+          email,
+          telegramUsername: telegramUsername.replace("@", "").trim(),
+          registeredVia: method, // "google" or "telegram"
+          refBy: query.ref || ""
+        };
+
+        const res = await fetch("/api/employers", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload)
+        });
+
+        if (!res.ok) {
+          throw new Error("Не удалось зарегистрировать личный кабинет.");
+        }
+
+        const employer = await res.json();
+
         setIsSuccess(true);
         setTimeout(() => {
-          localStorage.setItem("employer_session_id", "emp_session_" + Date.now());
-          localStorage.setItem("employer_name", name);
-          localStorage.setItem("employer_email", email);
-          localStorage.setItem("employer_tg", telegramUsername);
+          localStorage.setItem("employer_session_id", employer.id);
+          localStorage.setItem("employer_name", employer.name);
+          localStorage.setItem("employer_email", employer.email);
+          localStorage.setItem("employer_tg", employer.telegramUsername);
           localStorage.setItem("employer_role", "employer");
-          navigate("/employer");
+          navigate("/employer/crm");
         }, 1200);
       }
     } catch (err: any) {

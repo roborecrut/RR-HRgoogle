@@ -17,7 +17,26 @@ const db = {
   candidates: [] as any[],
   telegramLog: [] as any[],
   payments: [] as any[],
+  employers: [] as any[],
 };
+
+// Seed default employer
+db.employers.push({
+  id: "emp-demo",
+  name: "Сергей Ковалев",
+  email: "hr-director@company.ru",
+  telegramUsername: "cowal_sales",
+  balance: 1000,
+  registeredVia: "google",
+  createdAt: new Date().toISOString(),
+  limits: {
+    interviews: 2,
+    trainings: 2,
+    landings: 1,
+    interviewSystems: 1,
+    trainingSystems: 1
+  }
+});
 
 // Seed initial payments
 db.payments.push({
@@ -190,6 +209,189 @@ async function startServer() {
       active: hasKey,
       message: hasKey ? "Google Gemini API connected and ready." : "Running in realistic fallback mock mode (API key not configured)."
     });
+  });
+
+  // Employer APIs: Register/login, retrieve profile, topup, and purchase
+  app.post("/api/employers", (req, res) => {
+    const { name, email, telegramUsername, registeredVia, refBy } = req.body;
+    
+    // Check if employer already exists with this email
+    let emp = db.employers.find(e => e.email.toLowerCase() === email.toLowerCase());
+    
+    if (emp) {
+      return res.json(emp);
+    }
+    
+    const empId = "emp-" + Math.random().toString(36).substr(2, 6);
+    
+    // Initialize new employer with 1000 RR balance!
+    emp = {
+      id: empId,
+      name,
+      email,
+      telegramUsername: telegramUsername || "",
+      balance: 1000,
+      registeredVia: registeredVia || "google",
+      createdAt: new Date().toISOString(),
+      limits: {
+        interviews: 0,
+        trainings: 0,
+        landings: 0,
+        interviewSystems: 0,
+        trainingSystems: 0,
+      }
+    };
+    
+    db.employers.push(emp);
+    
+    // Referral bonus logic:
+    // If refBy parameter is present and matches an employer, give them 1000 RR
+    if (refBy) {
+      const referrer = db.employers.find(e => e.id === refBy);
+      if (referrer) {
+        referrer.balance = (referrer.balance || 0) + 1000;
+        
+        // Record payment reward
+        db.payments.push({
+          id: "pay-" + Math.random().toString(36).substr(2, 9),
+          companyName: referrer.name + " (" + referrer.email + ")",
+          amount: 1000,
+          itemType: "referral_reward",
+          itemName: `Реферальный бонус за запуск личного кабинета друга ${name}`,
+          status: "completed",
+          createdAt: new Date().toISOString()
+        });
+        
+        notifyTelegram(referrer.telegramId || "emp-demo", `🎁 Вам начислен реферальный бонус +1000 RR! Друг ${name} зарегистрировался на платформе по вашей реф-ссылке.`);
+      }
+    }
+    
+    res.status(201).json(emp);
+  });
+
+  app.get("/api/employers/:id", (req, res) => {
+    const emp = db.employers.find(e => e.id === req.params.id);
+    if (!emp) {
+      return res.status(404).json({ error: "Employer not found" });
+    }
+    res.json(emp);
+  });
+
+  app.put("/api/employers/:id", (req, res) => {
+    const emp = db.employers.find(e => e.id === req.params.id);
+    if (!emp) {
+      return res.status(404).json({ error: "Employer not found" });
+    }
+    
+    const { name, title, email, phone, telegramId } = req.body;
+    if (name !== undefined) emp.name = name;
+    if (title !== undefined) emp.title = title;
+    if (email !== undefined) emp.email = email;
+    if (phone !== undefined) emp.phone = phone;
+    if (telegramId !== undefined) emp.telegramId = telegramId;
+    
+    res.json({ success: true, employer: emp });
+  });
+
+  app.post("/api/employers/:id/topup", (req, res) => {
+    const emp = db.employers.find(e => e.id === req.params.id);
+    if (!emp) return res.status(404).json({ error: "Employer not found" });
+    
+    const { amountRubles } = req.body;
+    const amount = Number(amountRubles);
+    if (isNaN(amount) || amount < 100) {
+      return res.status(400).json({ error: "Минимальный платеж 100 рублей" });
+    }
+    
+    // 1 рубль = 1 RR
+    const rrCredited = amount;
+    emp.balance = (emp.balance || 0) + rrCredited;
+    
+    // Record payment receipt
+    const txId = "TX-CALC-" + Math.floor(100000 + Math.random() * 900000);
+    const newPayment = {
+      id: txId,
+      companyName: emp.name + " (" + emp.email + ")",
+      amount: amount,
+      itemType: "topup",
+      itemName: `Пополнение счета (+${rrCredited} RR)`,
+      status: "completed",
+      createdAt: new Date().toISOString()
+    };
+    db.payments.push(newPayment);
+    
+    notifyTelegram(emp.telegramId || "emp-demo", `💰 Баланс успешно пополнен на ${amount} руб. Начислено: +${rrCredited} RR.`);
+    
+    res.json({ success: true, balance: emp.balance, payment: newPayment });
+  });
+
+  app.post("/api/employers/:id/purchase", (req, res) => {
+    const emp = db.employers.find(e => e.id === req.params.id);
+    if (!emp) return res.status(404).json({ error: "Employer not found" });
+    
+    const { itemType } = req.body;
+    let price = 0;
+    let itemName = "";
+    
+    if (itemType === "interview") {
+      price = 100;
+      itemName = "Интервью (1 шт)";
+    } else if (itemType === "training") {
+      price = 100;
+      itemName = "ИИ Обучение (1 шт)";
+    } else if (itemType === "landing") {
+      price = 500;
+      itemName = "ИИ Лендинг вакансии";
+    } else if (itemType === "system_interview") {
+      price = 300;
+      itemName = "ИИ система интервью";
+    } else if (itemType === "system_training") {
+      price = 200;
+      itemName = "ИИ система обучения";
+    } else {
+      return res.status(400).json({ error: "Неверный тип услуги" });
+    }
+    
+    if ((emp.balance || 0) < price) {
+      return res.status(400).json({ error: `Недостаточно средств. Требуется ${price} RR, текущий баланс: ${emp.balance} RR.` });
+    }
+    
+    // Deduct balance
+    emp.balance -= price;
+    
+    // Increment specific limit counters
+    if (!emp.limits) {
+      emp.limits = {
+        interviews: 0,
+        trainings: 0,
+        landings: 0,
+        interviewSystems: 0,
+        trainingSystems: 0,
+      };
+    }
+    
+    if (itemType === "interview") emp.limits.interviews = (emp.limits.interviews || 0) + 1;
+    if (itemType === "training") emp.limits.trainings = (emp.limits.trainings || 0) + 1;
+    if (itemType === "landing") emp.limits.landings = (emp.limits.landings || 0) + 1;
+    if (itemType === "system_interview") emp.limits.interviewSystems = (emp.limits.interviewSystems || 0) + 1;
+    if (itemType === "system_training") emp.limits.trainingSystems = (emp.limits.trainingSystems || 0) + 1;
+    
+    // Record payment receipt
+    const txId = "TX-BUY-" + Math.floor(1000 + Math.random() * 9000);
+    const newPayment = {
+      id: txId,
+      companyName: emp.name + " (" + emp.email + ")",
+      amount: price,
+      itemType: "purchase_" + itemType,
+      itemName: `Покупка: ${itemName}`,
+      status: "completed",
+      createdAt: new Date().toISOString()
+    };
+    db.payments.push(newPayment);
+    
+    notifyTelegram(emp.telegramId || "emp-demo", `🛍️ Приобретена услуга: "${itemName}" за ${price} RR.`);
+    
+    res.json({ success: true, balance: emp.balance, limits: emp.limits, payment: newPayment });
   });
 
   // DB APIs: Get projects

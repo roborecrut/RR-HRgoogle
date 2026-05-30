@@ -42,11 +42,24 @@ import {
 } from "lucide-react";
 
 export default function EmployerPanel() {
-  const { navigate } = useRouter();
+  const { path, navigate } = useRouter();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
-  // Main navigation tabs
-  const [activeTab, setActiveTab] = useState<"crm" | "vacancies" | "companies" | "tariff" | "profile" | "events">("crm");
+  // Derive active tab from subroute PATH
+  let activeTab: "crm" | "vacancies" | "companies" | "tariff" | "profile" | "events" = "crm";
+  if (path.includes("/vacancies")) {
+    activeTab = "vacancies";
+  } else if (path.includes("/companies")) {
+    activeTab = "companies";
+  } else if (path.includes("/tariff") || path.includes("/billing") || path.includes("/invoice") || path.includes("/payment") || path.includes("/accounts")) {
+    activeTab = "tariff";
+  } else if (path.includes("/profile")) {
+    activeTab = "profile";
+  } else if (path.includes("/events")) {
+    activeTab = "events";
+  } else {
+    activeTab = "crm";
+  }
 
   // CRM sub-view styles
   const [crmViewMode, setCrmViewMode] = useState<"kanban" | "table" | "mailing">("kanban");
@@ -90,10 +103,35 @@ export default function EmployerPanel() {
   const [isProfileSaved, setIsProfileSaved] = useState(false);
 
   // Billing & Tariff States
+  const [employerId, setEmployerId] = useState(() => {
+    let id = localStorage.getItem("employer_session_id");
+    if (!id) {
+      id = "emp-demo"; // Seeded demo employer
+      localStorage.setItem("employer_session_id", id);
+      localStorage.setItem("employer_name", "Сергей Ковалев");
+      localStorage.setItem("employer_email", "hr-director@company.ru");
+      localStorage.setItem("employer_tg", "cowal_sales");
+      localStorage.setItem("employer_role", "employer");
+    }
+    return id;
+  });
+
+  const [balance, setBalance] = useState<number>(1000);
+  const [limits, setLimits] = useState({
+    interviews: 2,
+    trainings: 2,
+    landings: 1,
+    interviewSystems: 1,
+    trainingSystems: 1
+  });
+
+  const [topupAmountRub, setTopupAmountRub] = useState<number>(100);
+  const [purchaseError, setPurchaseError] = useState<string>("");
+  const [isBuying, setIsBuying] = useState<string | null>(null);
+  const [isToppingUp, setIsToppingUp] = useState(false);
+
   const [tariffLevel, setTariffLevel] = useState<"bronze" | "silver" | "gold">("bronze");
-  const [paymentHistory, setPaymentHistory] = useState<any[]>([
-    { id: "TX-1049", date: "2026-05-15", plan: "Старт (Бронза)", amount: "0 ₽", status: "Успешно", method: "Бесплатно" }
-  ]);
+  const [paymentHistory, setPaymentHistory] = useState<any[]>([]);
   const [showPaymentModal, setShowPaymentModal] = useState(false);
   const [selectedPlanToBuy, setSelectedPlanToBuy] = useState<"silver" | "gold" | null>(null);
   const [isProcessingPayment, setIsProcessingPayment] = useState(false);
@@ -116,6 +154,50 @@ export default function EmployerPanel() {
   ]);
   const [auditFilter, setAuditFilter] = useState<"all" | "info" | "success" | "warning">("all");
 
+  // Synchronized Full-Stack Fetching
+  const fetchEmployerData = async () => {
+    try {
+      const res = await fetch(`/api/employers/${employerId}`);
+      if (res.ok) {
+        const data = await res.json();
+        setBalance(data.balance || 0);
+        if (data.limits) {
+          setLimits(data.limits);
+        }
+        if (data.name) setProfileName(data.name);
+        if (data.title) setProfileTitle(data.title);
+        if (data.email) setProfileEmail(data.email);
+        if (data.phone) setProfilePhone(data.phone);
+        if (data.telegramId) setAdminTgId(data.telegramId);
+      }
+    } catch (err) {
+      console.error("Error loading employer profile:", err);
+    }
+  };
+
+  const handleUpdateProfile = async () => {
+    try {
+      const res = await fetch(`/api/employers/${employerId}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: profileName,
+          title: profileTitle,
+          email: profileEmail,
+          phone: profilePhone,
+          telegramId: adminTgId
+        })
+      });
+      if (res.ok) {
+        setIsProfileSaved(true);
+        addAuditEvent("success", "Профиль сохранен", "HR менеджер успешно обновил личные контактные данные и интеграции.");
+        setTimeout(() => setIsProfileSaved(false), 2500);
+      }
+    } catch (err) {
+      console.error("Error updating profile:", err);
+    }
+  };
+
   // Fetch initial data
   const fetchData = async () => {
     try {
@@ -136,6 +218,26 @@ export default function EmployerPanel() {
       const resAiStatus = await fetch("/api/ai-status");
       const dataAi = await resAiStatus.json();
       setAiStatus(dataAi);
+
+      // Fetch dynamic full-stack billing profile
+      await fetchEmployerData();
+
+      // Mirror transactions from backend to payments listing
+      const resPayments = await fetch("/api/admin/payments");
+      if (resPayments.ok) {
+        const paymentsData = await resPayments.json();
+        const mappedHistory = paymentsData
+          .filter((p: any) => p.companyName.includes(employerId) || p.companyName.includes(profileEmail))
+          .map((p: any) => ({
+            id: p.id,
+            date: p.createdAt ? p.createdAt.split("T")[0] : "2026-05-30",
+            plan: p.itemName,
+            amount: p.itemType.startsWith("purchase_") ? `-${p.amount} RR` : `+${p.amount} RR`,
+            status: "Успешно",
+            method: p.itemType === "topup" ? "Карта/Калькулятор" : p.itemType === "referral_reward" ? "Реферал" : "Баланс RR"
+          }));
+        setPaymentHistory(mappedHistory);
+      }
     } catch (err) {
       console.error("Error loading server data:", err);
     }
@@ -145,11 +247,64 @@ export default function EmployerPanel() {
     fetchData();
     const interval = setInterval(fetchData, 4000);
     return () => clearInterval(interval);
-  }, []);
+  }, [employerId]);
 
   const handleLogout = () => {
     localStorage.clear();
     navigate("/main");
+  };
+
+  // Action: Buy Service Limits via Balance RR
+  const handlePurchaseItem = async (itemType: "interview" | "training" | "landing" | "system_interview" | "system_training") => {
+    setPurchaseError("");
+    setIsBuying(itemType);
+    try {
+      const res = await fetch(`/api/employers/${employerId}/purchase`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ itemType })
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data.error || "Ошибка при списании баланса.");
+      }
+      setBalance(data.balance);
+      if (data.limits) setLimits(data.limits);
+      addAuditEvent("success", "Услуга приобретена", `Успешно куплено: ${itemType}`);
+      fetchData();
+    } catch (err: any) {
+      setPurchaseError(err.message);
+    } finally {
+      setIsBuying(null);
+    }
+  };
+
+  // Action: Top Up Balance 
+  const handleTopupBalance = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (topupAmountRub < 100) {
+      alert("Начальный минимальный платеж 100 рублей.");
+      return;
+    }
+    setIsToppingUp(true);
+    try {
+      const res = await fetch(`/api/employers/${employerId}/topup`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ amountRubles: topupAmountRub })
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data.error || "Не удалось пополнить баланс.");
+      }
+      setBalance(data.balance);
+      addAuditEvent("success", "Баланс пополнен", `Зачислено: +${topupAmountRub} RR`);
+      fetchData();
+    } catch (err: any) {
+      alert(err.message);
+    } finally {
+      setIsToppingUp(false);
+    }
   };
 
   // Log automated events helper
@@ -228,7 +383,7 @@ export default function EmployerPanel() {
 
       addAuditEvent("success", "ИИ-Блок онбординга собран", `Программа лекций, ситуационных вопросов создана для ${setupRoleName}`);
       setShowAddNewVacancy(false);
-      setActiveTab("vacancies");
+      navigate("/employer/vacancies");
       fetchData();
     } catch (err: any) {
       alert("Ошибка при генерации: " + err.message);
@@ -345,9 +500,7 @@ export default function EmployerPanel() {
   // Save TG ID
   const saveTgId = () => {
     localStorage.setItem("employer_tg_id", adminTgId);
-    setIsProfileSaved(true);
-    addAuditEvent("success", "Telegram ID привязан", `Бот интегрирован на канал ${adminTgId}`);
-    setTimeout(() => setIsProfileSaved(false), 2500);
+    handleUpdateProfile();
   };
 
   // Filtering candidates
@@ -392,7 +545,7 @@ export default function EmployerPanel() {
             <button onClick={() => navigate("/vacancy")} className="transition px-3 py-2 rounded-xl text-slate-300 hover:text-white hover:bg-white/10">
               Каталог Профессий
             </button>
-            <button onClick={() => setActiveTab("crm")} className="transition px-3 py-2 rounded-xl text-[#E7C768] bg-white/10 border border-[#E7C768]/20">
+            <button onClick={() => navigate("/employer/crm")} className="transition px-3 py-2 rounded-xl text-[#E7C768] bg-white/10 border border-[#E7C768]/20">
               Панель Работодателя 💼
             </button>
             <button onClick={() => navigate("/candidate")} className="transition px-3 py-2 rounded-xl text-slate-300 hover:text-white hover:bg-white/10 bg-white/5 border border-white/10">
@@ -420,7 +573,7 @@ export default function EmployerPanel() {
           <div className="md:hidden mt-4 pt-4 border-t border-white/10 flex flex-col gap-3 font-semibold">
             <button onClick={() => { navigate("/main"); setMobileMenuOpen(false); }} className="transition text-left w-full px-4 py-3 rounded-xl text-slate-300 hover:text-white hover:bg-white/5">Главная</button>
             <button onClick={() => { navigate("/vacancy"); setMobileMenuOpen(false); }} className="transition text-left w-full px-4 py-3 rounded-xl text-slate-300 hover:text-white hover:bg-white/5">Каталог Профессий</button>
-            <button onClick={() => { setActiveTab("crm"); setMobileMenuOpen(false); }} className="transition text-left w-full px-4 py-3 rounded-xl text-[#E7C768] bg-white/10">Панель Работодателя</button>
+            <button onClick={() => { navigate("/employer/crm"); setMobileMenuOpen(false); }} className="transition text-left w-full px-4 py-3 rounded-xl text-[#E7C768] bg-white/10">Панель Работодателя</button>
             <button onClick={() => { navigate("/candidate"); setMobileMenuOpen(false); }} className="transition text-left w-full px-4 py-3 rounded-xl text-slate-300 hover:text-white hover:bg-white/5">Кабинет Соискателя</button>
             <button onClick={() => { handleLogout(); setMobileMenuOpen(false); }} className="transition text-left w-full px-4 py-3 rounded-xl text-red-300 hover:bg-red-950/25">Выйти из кабинета</button>
           </div>
@@ -442,7 +595,7 @@ export default function EmployerPanel() {
             {/* SIX REQUIRED PAGES */}
             <div className="space-y-1.5 pt-2 text-left">
               <button
-                onClick={() => { setActiveTab("crm"); setCrmViewMode("kanban"); }}
+                onClick={() => { navigate("/employer/crm"); setCrmViewMode("kanban"); }}
                 className={`w-full text-left font-bold text-xs px-4 py-2.5 rounded-xl flex items-center justify-between transition-all ${activeTab === "crm" ? "bg-[#1E4468] text-[#E7C768] border border-[#E7C768]/60 shadow" : "bg-white/5 text-slate-300 hover:bg-white/10"}`}
               >
                 <span className="flex items-center gap-2">
@@ -452,7 +605,7 @@ export default function EmployerPanel() {
               </button>
 
               <button
-                onClick={() => setActiveTab("vacancies")}
+                onClick={() => navigate("/employer/vacancies")}
                 className={`w-full text-left font-bold text-xs px-4 py-2.5 rounded-xl flex items-center justify-between transition-all ${activeTab === "vacancies" ? "bg-[#1E4468] text-[#E7C768] border border-[#E7C768]/60 shadow" : "bg-white/5 text-slate-300 hover:bg-white/10"}`}
               >
                 <span className="flex items-center gap-2">
@@ -462,7 +615,7 @@ export default function EmployerPanel() {
               </button>
 
               <button
-                onClick={() => setActiveTab("companies")}
+                onClick={() => navigate("/employer/companies")}
                 className={`w-full text-left font-bold text-xs px-4 py-2.5 rounded-xl flex items-center justify-between transition-all ${activeTab === "companies" ? "bg-[#1E4468] text-[#E7C768] border border-[#E7C768]/60 shadow" : "bg-white/5 text-slate-300 hover:bg-white/10"}`}
               >
                 <span className="flex items-center gap-2">
@@ -471,17 +624,17 @@ export default function EmployerPanel() {
               </button>
 
               <button
-                onClick={() => setActiveTab("tariff")}
+                onClick={() => navigate("/employer/tariff")}
                 className={`w-full text-left font-bold text-xs px-4 py-2.5 rounded-xl flex items-center justify-between transition-all ${activeTab === "tariff" ? "bg-[#1E4468] text-[#E7C768] border border-[#E7C768]/60 shadow" : "bg-white/5 text-slate-300 hover:bg-white/10"}`}
               >
                 <span className="flex items-center gap-2">
                   <CreditCard className="w-4 h-4 text-[#D99E41]" /> 4. Тариф & Счета
                 </span>
-                <span className="bg-emerald-950 text-[9px] text-emerald-400 font-bold uppercase px-1 py-0.5 rounded">{tariffLevel}</span>
+                <span className="bg-emerald-950 text-[10px] text-[#E7C768] font-bold uppercase px-1.5 py-0.5 rounded font-mono">{balance} RR</span>
               </button>
 
               <button
-                onClick={() => setActiveTab("profile")}
+                onClick={() => navigate("/employer/profile")}
                 className={`w-full text-left font-bold text-xs px-4 py-2.5 rounded-xl flex items-center justify-between transition-all ${activeTab === "profile" ? "bg-[#1E4468] text-[#E7C768] border border-[#E7C768]/60 shadow" : "bg-white/5 text-slate-300 hover:bg-white/10"}`}
               >
                 <span className="flex items-center gap-2">
@@ -490,7 +643,7 @@ export default function EmployerPanel() {
               </button>
 
               <button
-                onClick={() => setActiveTab("events")}
+                onClick={() => navigate("/employer/events")}
                 className={`w-full text-left font-bold text-xs px-4 py-2.5 rounded-xl flex items-center justify-between transition-all ${activeTab === "events" ? "bg-[#1E4468] text-[#E7C768] border border-[#E7C768]/60 shadow" : "bg-white/5 text-slate-300 hover:bg-white/10"}`}
               >
                 <span className="flex items-center gap-2">
@@ -1156,136 +1309,391 @@ export default function EmployerPanel() {
               </div>
             </div>
           )}
-
-          {/* PAGE 4: TARIFFS & BILLS */}
+          
+          {/* PAGE 4: BILLS & ACCOUNTS - DYNAMIC BALANCE & SHIELD */}
           {activeTab === "tariff" && (
             <div className="space-y-6 text-left">
-              <div className="bg-[#1D3E5E]/85 border border-white/15 rounded-3xl p-6 shadow-xl space-y-4">
-                <h2 className="text-lg font-bold text-[#E7C768] flex items-center gap-1.5">
-                  <CreditCard className="w-5 h-5 text-[#E7C768]" /> Подписки, Лимиты и Счета
-                </h2>
-                <p className="text-xs text-slate-300">
-                  Управляйте тарифами Робота-Рекрутера. Лимиты сбрасываются каждые 30 дней с момента оплаты расчетного периода.
-                </p>
-
-                {/* Meter gauge */}
-                <div className="bg-black/20 p-4 rounded-2xl border border-white/5">
-                  <div className="flex justify-between text-xs font-bold text-slate-200 mb-1.5">
-                    <span>Использованный ИИ Лимит Соискателей:</span>
-                    <span className="font-mono text-[#E7C768]">
-                      {candidates.length} / {tariffLevel === "bronze" ? "5" : tariffLevel === "silver" ? "50" : "Безлимитно"}
-                    </span>
+              
+              {/* BALANCE SUMMARY PANEL CARD */}
+              <div className="grid grid-cols-1 md:grid-cols-12 gap-6 font-medium">
+                <div className="md:col-span-4 bg-[#1D3E5E]/95 border border-[#E7C768]/45 rounded-3xl p-6 shadow-xl flex flex-col justify-between space-y-4">
+                  <div>
+                    <span className="text-[10px] font-bold text-[#E7C768] tracking-widest uppercase font-mono block">Лицевой счет счета</span>
+                    <h2 className="text-3xl font-extrabold text-white mt-1.5 font-mono select-none">{balance} <span className="text-lg font-bold text-[#E7C768]">RR</span></h2>
+                    <p className="text-[11px] text-slate-300 mt-2 leading-relaxed">
+                      У вас бессрочный баланс. Оплата списывается исключительно за фактически приобретенные пакетные лимиты ИИ.
+                    </p>
                   </div>
-                  <div className="w-full bg-slate-800 rounded-full h-2.5 overflow-hidden">
-                    <div 
-                      className="bg-gradient-to-r from-amber-500 to-red-650 h-2.5 rounded-full transition-all"
-                      style={{ width: `${Math.min(100, (candidates.length / (tariffLevel === "bronze" ? 5 : tariffLevel === "silver" ? 50 : 100)) * 100)}%` }}
-                    />
+                  <div className="bg-black/25 rounded-2xl p-3 border border-white/5 space-y-1">
+                    <span className="text-[9px] text-slate-400 font-bold block uppercase font-mono">Ваш ID аккаунта</span>
+                    <span className="font-mono text-xs font-bold text-slate-300">{employerId}</span>
+                  </div>
+                </div>
+
+                {/* LIMITS INSTRUCTION SHIELD */}
+                <div className="md:col-span-8 bg-[#1D3E5E]/85 border border-white/15 rounded-3xl p-6 shadow-xl space-y-4 flex flex-col justify-between">
+                  <div>
+                    <h3 className="font-bold text-sm text-[#E7C768] flex items-center gap-1.5 leading-snug">
+                      <Award className="w-4 h-4 text-[#E7C768]" /> Текущие ИИ-Лимиты на балансе
+                    </h3>
+                    <p className="text-[11px] text-slate-350 mt-1">
+                      Лимиты расходуются соискателями при прохождении ИИ-интервью, ИИ-обучения и создании новых адаптационных материалов.
+                    </p>
+                  </div>
+
+                  <div className="grid grid-cols-2 md:grid-cols-5 gap-3.5 text-xs text-center py-2">
+                    <div className="bg-black/20 p-2.5 rounded-2xl border border-white/5 hover:border-white/10 transition">
+                      <span className="text-[10px] text-slate-400 block font-normal leading-tight">ИИ-Интервью</span>
+                      <strong className="text-base text-white block mt-1 font-mono">
+                        {limits.interviews} <span className="text-[10px] font-sans font-light text-slate-400 font-normal">шт</span>
+                      </strong>
+                    </div>
+                    <div className="bg-black/20 p-2.5 rounded-2xl border border-white/5 hover:border-white/10 transition">
+                      <span className="text-[10px] text-slate-400 block font-normal leading-tight">ИИ-Обучение</span>
+                      <strong className="text-base text-white block mt-1 font-mono">
+                        {limits.trainings} <span className="text-[10px] font-sans font-light text-slate-400 font-normal">шт</span>
+                      </strong>
+                    </div>
+                    <div className="bg-black/20 p-2.5 rounded-2xl border border-white/5 hover:border-white/10 transition">
+                      <span className="text-[10px] text-slate-400 block font-normal leading-tight">ИИ-Лендинги</span>
+                      <strong className="text-base text-white block mt-1 font-mono">
+                        {limits.landings} <span className="text-[10px] font-sans font-light text-slate-400 font-normal">шт</span>
+                      </strong>
+                    </div>
+                    <div className="bg-black/20 p-2.5 rounded-2xl border border-white/5 hover:border-white/10 transition">
+                      <span className="text-[10px] text-slate-400 block font-normal leading-tight">Систем интервью</span>
+                      <strong className="text-base text-white block mt-1 font-mono">
+                        {limits.interviewSystems} <span className="text-[10px] font-sans font-light text-slate-400 font-normal">шт</span>
+                      </strong>
+                    </div>
+                    <div className="bg-black/20 p-2.5 rounded-2xl border border-white/5 hover:border-white/10 transition">
+                      <span className="text-[10px] text-slate-400 block font-normal leading-tight">Систем обучения</span>
+                      <strong className="text-base text-white block mt-1 font-mono">
+                        {limits.trainingSystems} <span className="text-[10px] font-sans font-light text-slate-400 font-normal">шт</span>
+                      </strong>
+                    </div>
                   </div>
                 </div>
               </div>
 
-              {/* THREE SUBSCRIPTION PLANS TIERS CARDS */}
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-6 font-medium">
+              {/* PURCHASING MARKETPLACE TABLE AND CALCULATOR ROW */}
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                 
-                {/* Bronze */}
-                <div className={`p-5 rounded-3xl border flex flex-col justify-between ${tariffLevel === "bronze" ? "bg-[#1E4468]/95 border-[#E7C768]/65 shadow-lg" : "bg-black/25 border-white/10"}`}>
-                  <div className="space-y-3">
-                    <span className="text-[10px] font-bold text-slate-400 uppercase font-mono block">Стандарт</span>
-                    <h3 className="text-base font-bold text-white flex items-baseline gap-1">Бронза <span className="text-xs text-[#E7C768] font-mono">0 ₽</span></h3>
-                    <p className="text-[11px] text-slate-300 leading-relaxed font-normal">Для тестирования и малых объемов первой фильтрации кадров.</p>
-                    <ul className="text-[10px] space-y-1.5 text-slate-200 list-disc list-inside">
-                      <li>До 5 соискателей в месяц</li>
-                      <li>До 2 активных вакансий</li>
-                      <li>Базовые ИИ-сценарии GPT</li>
-                      <li>Привязка 1 Telegram ID</li>
-                    </ul>
+                {/* 1. PURCHASE SERVICES DIRECTLY TABLE */}
+                <div className="bg-[#1D3E5E]/85 border border-white/15 rounded-3xl p-6 shadow-xl space-y-4 flex flex-col justify-between">
+                  <div>
+                    <h3 className="font-bold text-sm text-[#E7C768] flex items-center gap-1.5 uppercase tracking-wider font-mono text-[11px]">
+                      🛍️ Купить лимиты ИИ услуг за RR
+                    </h3>
+                    <p className="text-xs text-slate-300">
+                      Лимиты активируются мгновенно и не имеют срока давности.
+                    </p>
+                    
+                    {purchaseError && (
+                      <div className="bg-red-950/40 border border-red-500/35 text-red-300 rounded-xl p-2.5 text-[11px] mt-2 font-mono">
+                        ⚠️ {purchaseError}
+                      </div>
+                    )}
                   </div>
-                  <button disabled className="mt-6 w-full text-center text-[10px] font-bold uppercase py-2 rounded bg-white/5 border border-white/5 text-slate-350">
-                    {tariffLevel === "bronze" ? "Активен" : "Начальный план"}
-                  </button>
+
+                  <div className="space-y-2.5 pt-2">
+                    {/* Item 1: Interview */}
+                    <div className="bg-black/15 p-3 rounded-2xl border border-white/5 flex items-center justify-between gap-3 text-xs font-normal">
+                      <div className="max-w-[70%]">
+                        <h4 className="font-bold text-white text-xs flex items-center gap-1.5">
+                          <span className="text-amber-400">🎙️</span> ИИ Собеседование соискателя
+                        </h4>
+                        <p className="text-[10.5px] text-slate-300 mt-1 leading-relaxed">
+                          <strong className="text-amber-400/90 font-semibold font-mono text-[9.5px]">Включает:</strong> ИИ Скрининг резюме + ИИ чек-лист по опыту и навыкам + ИИ ролевая игра с 3 ситуациями.
+                        </p>
+                      </div>
+                      <div className="flex items-center gap-2.5">
+                        <span className="font-mono font-bold text-[#E7C768]">100 RR</span>
+                        <button
+                          onClick={(e) => handlePurchaseItem("interview")}
+                          disabled={isBuying !== null}
+                          className="bg-amber-500 hover:bg-amber-600 disabled:opacity-40 text-[#17344F] font-bold text-[10px] uppercase tracking-wider px-3 py-1.5 rounded-xl transition cursor-pointer"
+                        >
+                          {isBuying === "interview" ? "Куплю..." : "Купить"}
+                        </button>
+                      </div>
+                    </div>
+
+                    {/* Item 2: AI Training */}
+                    <div className="bg-black/15 p-3 rounded-2xl border border-white/5 flex items-center justify-between gap-3 text-xs font-normal">
+                      <div className="max-w-[70%]">
+                        <h4 className="font-bold text-white text-xs flex items-center gap-1.5">
+                          <span className="text-amber-400">🎓</span> Интерактивное ИИ Обучение соискателя
+                        </h4>
+                        <p className="text-[10.5px] text-slate-300 mt-1 leading-relaxed">
+                          <strong className="text-amber-400/90 font-semibold font-mono text-[9.5px]">Включает:</strong> Профессиональное ИИ дообучение после интервью + ИИ обучение продукту + ИИ обучение системе работы и условиям.
+                        </p>
+                      </div>
+                      <div className="flex items-center gap-2.5">
+                        <span className="font-mono font-bold text-[#E7C768]">100 RR</span>
+                        <button
+                          onClick={(e) => handlePurchaseItem("training")}
+                          disabled={isBuying !== null}
+                          className="bg-amber-500 hover:bg-amber-600 disabled:opacity-40 text-[#17344F] font-bold text-[10px] uppercase tracking-wider px-3 py-1.5 rounded-xl transition cursor-pointer"
+                        >
+                          {isBuying === "training" ? "Куплю..." : "Купить"}
+                        </button>
+                      </div>
+                    </div>
+
+                    {/* Item 3: Job AI Landing page */}
+                    <div className="bg-black/15 p-3 rounded-2xl border border-white/5 flex items-center justify-between gap-3 text-xs font-normal">
+                      <div className="max-w-[70%]">
+                        <h4 className="font-bold text-white text-xs flex items-center gap-1.5">
+                          <span className="text-amber-400">🌐</span> ИИ Лендинг созданной вакансии
+                        </h4>
+                        <p className="text-[10.5px] text-slate-300 mt-1 leading-relaxed">
+                          <strong className="text-amber-400/90 font-semibold font-mono text-[9.5px]">Описание:</strong> Создание стильного внешнего мини-сайта для регистрации ваших кандидатов в системе с описанием вакансии, условий и информации о компании с ИИ консультантом по базе знаний.
+                        </p>
+                      </div>
+                      <div className="flex items-center gap-2.5">
+                        <span className="font-mono font-bold text-[#E7C768]">500 RR</span>
+                        <button
+                          onClick={(e) => handlePurchaseItem("landing")}
+                          disabled={isBuying !== null}
+                          className="bg-amber-500 hover:bg-amber-600 disabled:opacity-40 text-[#17344F] font-bold text-[10px] uppercase tracking-wider px-3 py-1.5 rounded-xl transition cursor-pointer"
+                        >
+                          {isBuying === "landing" ? "Куплю..." : "Купить"}
+                        </button>
+                      </div>
+                    </div>
+
+                    {/* Item 4: AI Interview System creation */}
+                    <div className="bg-black/15 p-3 rounded-2xl border border-white/5 flex items-center justify-between gap-3 text-xs font-normal">
+                      <div className="max-w-[70%]">
+                        <h4 className="font-bold text-white text-xs flex items-center gap-1.5">
+                          <span className="text-amber-400">⚙️</span> ИИ Система Интервью
+                        </h4>
+                        <p className="text-[10.5px] text-slate-300 mt-1 leading-relaxed">
+                          <strong className="text-amber-400/90 font-semibold font-mono text-[9.5px]">Описание:</strong> Генератор сценариев с тестами под вашу специальность и вакансию.
+                        </p>
+                      </div>
+                      <div className="flex items-center gap-2.5">
+                        <span className="font-mono font-bold text-[#E7C768]">300 RR</span>
+                        <button
+                          onClick={(e) => handlePurchaseItem("system_interview")}
+                          disabled={isBuying !== null}
+                          className="bg-amber-500 hover:bg-amber-600 disabled:opacity-40 text-[#17344F] font-bold text-[10px] uppercase tracking-wider px-3 py-1.5 rounded-xl transition cursor-pointer"
+                        >
+                          {isBuying === "system_interview" ? "Куплю..." : "Купить"}
+                        </button>
+                      </div>
+                    </div>
+
+                    {/* Item 5: AI Training System creation */}
+                    <div className="bg-black/15 p-3 rounded-2xl border border-white/5 flex items-center justify-between gap-3 text-xs font-normal">
+                      <div className="max-w-[70%]">
+                        <h4 className="font-bold text-white text-xs flex items-center gap-1.5">
+                          <span className="text-amber-400">👁️‍🗨️</span> ИИ Система Обучения
+                        </h4>
+                        <p className="text-[10.5px] text-slate-300 mt-1 leading-relaxed">
+                          <strong className="text-amber-400/90 font-semibold font-mono text-[9.5px]">Описание:</strong> ИИ создает Продвинутую индивидуальную тренажерную симуляцию для персонала, для аттестаций новых сотрудников, переаттестаций текущих и для быстрого онбординга.
+                        </p>
+                      </div>
+                      <div className="flex items-center gap-2.5">
+                        <span className="font-mono font-bold text-[#E7C768]">200 RR</span>
+                        <button
+                          onClick={(e) => handlePurchaseItem("system_training")}
+                          disabled={isBuying !== null}
+                          className="bg-amber-500 hover:bg-amber-600 disabled:opacity-40 text-[#17344F] font-bold text-[10px] uppercase tracking-wider px-3 py-1.5 rounded-xl transition cursor-pointer"
+                        >
+                          {isBuying === "system_training" ? "Куплю..." : "Купить"}
+                        </button>
+                      </div>
+                    </div>
+                  </div>
                 </div>
 
-                {/* Silver */}
-                <div className={`p-5 rounded-3xl border flex flex-col justify-between ${tariffLevel === "silver" ? "bg-[#1E4468]/95 border-[#E7C768]/65 shadow-lg" : "bg-[#17344F]/50 border-white/10"}`}>
-                  <div className="space-y-3">
-                    <span className="text-[10px] font-bold text-sky-400 uppercase font-mono block">Продвинутый</span>
-                    <h3 className="text-base font-bold text-white flex items-baseline gap-1">Серебро <span className="text-xs text-[#E7C768] font-mono">14 900 ₽</span></h3>
-                    <p className="text-[11px] text-slate-300 leading-relaxed font-normal">Идеально для растущих отделов продаж и филиалов.</p>
-                    <ul className="text-[10px] space-y-1.5 text-slate-200 list-disc list-inside">
-                      <li>До 50 соискателей в месяц</li>
-                      <li>До 5 активных вакансий</li>
-                      <li>Режим Gemini Flash API</li>
-                      <li>Привязка Telegram ботов</li>
-                      <li>Своя база Wiki Wiki</li>
-                    </ul>
-                  </div>
-                  <button 
-                    disabled={tariffLevel === "silver" || tariffLevel === "gold"}
-                    onClick={() => { setSelectedPlanToBuy("silver"); setShowPaymentModal(true); }}
-                    className="cursor-pointer mt-6 w-full text-center text-[11px] font-bold uppercase py-2 rounded bg-gradient-to-r from-amber-500 to-amber-600 border border-[#E7C768]/20 text-white disabled:opacity-40"
-                  >
-                    {tariffLevel === "silver" ? "Активен" : tariffLevel === "gold" ? "Приобретено" : "Купить Серебро"}
-                  </button>
-                </div>
+                {/* 2. TOP UP BILLING CALCULATOR CARD */}
+                <div className="bg-[#1D3E5E]/85 border border-[#E7C768]/30 rounded-3xl p-6 shadow-xl space-y-4 flex flex-col justify-between">
+                  <form onSubmit={handleTopupBalance} className="space-y-4 flex flex-col justify-between h-full">
+                    <div>
+                      <h3 className="font-bold text-sm text-[#E7C768] flex items-center gap-1.5 uppercase tracking-wider font-mono text-[11px]">
+                        💵 Калькулятор пополнения баланса
+                      </h3>
+                      <p className="text-xs text-slate-300 mt-1">
+                        Выгодный курс: **1 рубль = 1 RR**. Начальный минимальный платеж 100 рублей.
+                      </p>
+                    </div>
 
-                {/* Gold / VIP */}
-                <div className={`p-5 rounded-3xl border flex flex-col justify-between ${tariffLevel === "gold" ? "bg-[#1E4468]/95 border-[#E7C768]/65 shadow-lg" : "bg-[#2A2A2A]/25 border-white/10"}`}>
-                  <div className="space-y-3">
-                    <span className="text-[10px] font-bold text-emerald-400 uppercase font-mono block">Премимум решение</span>
-                    <h3 className="text-base font-bold text-white flex items-baseline gap-1">VIP Золото <span className="text-xs text-[#E7C768] font-mono">39 900 ₽</span></h3>
-                    <p className="text-[11px] text-slate-300 leading-relaxed font-normal">Безлимитный ИИ И ураганная скорость набора сотрудников.</p>
-                    <ul className="text-[10px] space-y-1.5 text-slate-200 list-disc list-inside">
-                      <li>Абсолютный безлимит кадров</li>
-                      <li>Безлимитные проекты Wiki</li>
-                      <li>Выделенная ИИ-шина Gemini Pro</li>
-                      <li>Выгрузка в корпоративные CRM</li>
-                    </ul>
-                  </div>
-                  <button 
-                    disabled={tariffLevel === "gold"}
-                    onClick={() => { setSelectedPlanToBuy("gold"); setShowPaymentModal(true); }}
-                    className="cursor-pointer mt-6 w-full text-center text-[11px] font-bold uppercase py-2 rounded bg-gradient-to-r from-emerald-600 to-teal-700 text-white disabled:opacity-40"
-                  >
-                    {tariffLevel === "gold" ? "Сверх-доступ активен" : "Подключить Безлимит"}
-                  </button>
-                </div>
+                    <div className="space-y-3.5 my-3">
+                      <div>
+                        <label className="block text-[11px] font-bold text-slate-300 mb-1.5 uppercase tracking-wider">
+                          Вы вносите к оплате (в рублях):
+                        </label>
+                        <div className="relative">
+                          <input
+                            type="number"
+                            min="100"
+                            value={topupAmountRub}
+                            onChange={(e) => setTopupAmountRub(Math.max(0, parseInt(e.target.value) || 0))}
+                            className="bg-black/35 w-full rounded-2xl border border-white/10 px-4 py-3 font-mono font-extrabold text-white text-sm focus:outline-none focus:border-[#E7C768]"
+                          />
+                          <span className="absolute right-4 top-3 text-xs font-bold text-[#E7C768] font-mono">₽ (RUB)</span>
+                        </div>
+                        {topupAmountRub < 100 && (
+                          <span className="text-[10px] text-amber-400 block mt-1 font-mono">⚠️ Минимум 100 рублей</span>
+                        )}
+                      </div>
 
+                      {/* Quick pick templates */}
+                      <div className="flex gap-2 text-[10px] font-mono font-bold leading-none">
+                        <button
+                          type="button"
+                          onClick={() => setTopupAmountRub(100)}
+                          className={`px-3 py-2 rounded-xl transition-all border ${topupAmountRub === 100 ? "bg-[#1E4468] text-[#E7C768] border-[#E7C768]/60 font-bold" : "bg-black/20 text-slate-400 border-white/5 hover:border-white/15 font-normal"}`}
+                        >
+                          100 ₽
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setTopupAmountRub(500)}
+                          className={`px-3 py-2 rounded-xl transition-all border ${topupAmountRub === 500 ? "bg-[#1E4468] text-[#E7C768] border-[#E7C768]/60 font-bold" : "bg-black/20 text-slate-400 border-white/5 hover:border-white/15 font-normal"}`}
+                        >
+                          500 ₽
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setTopupAmountRub(1000)}
+                          className={`px-3 py-2 rounded-xl transition-all border ${topupAmountRub === 1000 ? "bg-[#1E4468] text-[#E7C768] border-[#E7C768]/60 font-bold" : "bg-black/20 text-slate-400 border-white/5 hover:border-white/15 font-normal"}`}
+                        >
+                          1 000 ₽
+                        </button>
+                      </div>
+
+                      {/* Equivalent calculation block */}
+                      <div className="bg-emerald-950/20 p-3.5 rounded-2xl border border-emerald-500/20 text-xs flex justify-between items-center bg-black/20">
+                        <div>
+                          <span className="text-[10px] text-slate-400 block font-normal">Будет начислено на счет баланса:</span>
+                          <span className="text-sm font-extrabold text-[#E7C768] block mt-1 font-mono">
+                            {topupAmountRub} RR
+                          </span>
+                        </div>
+                        <span className="text-[10px] text-slate-400 bg-white/5 hover:bg-white/10 transition px-2.5 py-1 rounded-full font-mono font-bold uppercase tracking-wider">
+                          Курс 1:1
+                        </span>
+                      </div>
+                    </div>
+
+                    <button
+                      type="submit"
+                      disabled={isToppingUp || topupAmountRub < 100}
+                      className="cursor-pointer bg-gradient-to-r from-emerald-500 to-teal-650 hover:from-emerald-600 hover:to-teal-700 disabled:opacity-40 text-[#17344F] font-bold text-xs uppercase tracking-wider py-3.5 rounded-2xl w-full transition flex items-center justify-center gap-1.5"
+                    >
+                      {isToppingUp ? "Обработка шлюза..." : "🚀 Пополнить Баланс"}
+                    </button>
+                  </form>
+                </div>
               </div>
 
-              {/* PAYMENT TRANSACTIONS RECEIPTS REGISTRY LIST */}
-              <div className="bg-[#1D3E5E]/40 border border-white/10 rounded-3xl overflow-hidden shadow">
+              {/* REFERRAL PROGRAM CARD */}
+              <div className="bg-[#1D3E5E]/60 border border-white/10 rounded-3xl p-6 shadow-xl space-y-4">
+                <div className="flex items-center gap-3">
+                  <span className="text-2xl select-none">🎁</span>
+                  <div>
+                    <h3 className="font-bold text-sm text-[#E7C768]">Зарабатывайте 1000 RR за рекомендацию друга!</h3>
+                    <p className="text-[11px] text-slate-300 leading-relaxed font-normal mt-0.5">
+                      Пригласите другого руководителя или HR-менеджера. Когда они заригистрируются по вашей ссылке через Google или Telegram,
+                      вам мгновенно зачислится бонус **1000 RR**, а приглашенный друг получит приветственные **1000 RR** на баланс!
+                    </p>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-2">
+                  <div className="bg-black/15 p-3 rounded-2xl border border-white/5 space-y-1.5 text-xs text-left">
+                    <span className="text-[10px] text-slate-400 font-bold block uppercase font-mono">Официальная реферальная ссылка:</span>
+                    <div className="flex items-center gap-2">
+                      <input
+                        type="text"
+                        readOnly
+                        value={`https://hr-rr.ru?ref=${employerId}`}
+                        className="bg-black/30 w-full select-all font-mono font-normal text-slate-300 text-[11px] border border-white/5 p-1.5 rounded"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => {
+                          navigator.clipboard.writeText(`https://hr-rr.ru?ref=${employerId}`);
+                          addAuditEvent("success", "Ссылка скопирована", "Официальная ссылка скопирована в буфер обмена.");
+                          alert("Официальная ссылка скопирована!");
+                        }}
+                        className="bg-white/10 hover:bg-white/20 text-[#E7C768] px-2 py-1 border border-white/5 text-[10px] uppercase font-bold rounded cursor-pointer"
+                      >
+                        Копировать
+                      </button>
+                    </div>
+                  </div>
+
+                  <div className="bg-black/15 p-3 rounded-2xl border border-white/5 space-y-1.5 text-xs text-left">
+                    <span className="text-[10px] text-slate-400 font-bold block uppercase font-mono">Тестирование в Песочнице (Для проверки):</span>
+                    <div className="flex items-center gap-2">
+                      <input
+                        type="text"
+                        readOnly
+                        value={`${window.location.origin}/auth?ref=${employerId}`}
+                        className="bg-black/30 w-full select-all font-mono font-normal text-emerald-400 text-[11px] border border-white/5 p-1.5 rounded"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => {
+                          navigator.clipboard.writeText(`${window.location.origin}/auth?ref=${employerId}`);
+                          addAuditEvent("success", "Ссылка скопирована", "Песочная тестовая ссылка скопирована.");
+                          alert("Ссылка для тестирования скопирована!");
+                        }}
+                        className="bg-emerald-950 hover:bg-emerald-900 text-emerald-400 px-2 py-1 border border-emerald-500/20 text-[10px] uppercase font-bold rounded cursor-pointer"
+                      >
+                        Копировать
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* PAYMENT TRANSACTIONS RECEIPT REGISTRY FOR EMPOWERED TRACKING */}
+              <div className="bg-[#1D3E5E]/45 border border-white/10 rounded-3xl overflow-hidden shadow">
                 <div className="p-4 bg-gradient-to-r from-[#17344F] to-[#265582] text-xs font-bold font-mono tracking-wider text-slate-300">
-                  История Платежей & Выставленные счета
+                  История Платежей, Списаний & Бонусов счета
                 </div>
-                <div className="overflow-x-auto text-xs font-mono">
-                  <table className="w-full text-left">
-                    <thead>
-                      <tr className="bg-black/25 text-gray-400 border-b border-white/5">
-                        <th className="p-3">ID Транзакции</th>
-                        <th className="p-3">Дата операции</th>
-                        <th className="p-3">Тарифный план</th>
-                        <th className="p-3">Сумма</th>
-                        <th className="p-3">Способ</th>
-                        <th className="p-3 text-right">Статус</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-white/5 text-slate-200 font-normal">
-                      {paymentHistory.map((pt, i) => (
-                        <tr key={i} className="hover:bg-white/5">
-                          <td className="p-3 font-bold">{pt.id}</td>
-                          <td className="p-3">{pt.date}</td>
-                          <td className="p-3 font-sans font-bold text-[#E7C768]">{pt.plan}</td>
-                          <td className="p-3 font-bold">{pt.amount}</td>
-                          <td className="p-3 font-sans text-slate-300">{pt.method}</td>
-                          <td className="p-3 text-right font-sans">
-                            <span className="bg-emerald-950/80 border border-emerald-500/20 text-emerald-400 px-2 py-0.5 rounded font-bold text-[10px]">{pt.status}</span>
-                          </td>
+                {paymentHistory.length === 0 ? (
+                  <p className="p-4 text-xs text-slate-400 font-normal">Пока не зафиксировано ни одной операции по данному работодателю.</p>
+                ) : (
+                  <div className="overflow-x-auto text-xs font-mono">
+                    <table className="w-full text-left">
+                      <thead>
+                        <tr className="bg-black/25 text-[#E7C768] border-b border-white/5 font-bold">
+                          <th className="p-3">ID Операции</th>
+                          <th className="p-3">Дата операции</th>
+                          <th className="p-3">Название операции / наименование услуги</th>
+                          <th className="p-3 text-right">Начислено / Списано</th>
+                          <th className="p-3 text-right">Метод</th>
+                          <th className="p-3 text-right">Статус</th>
                         </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
+                      </thead>
+                      <tbody className="divide-y divide-white/5 text-slate-200 font-normal">
+                        {paymentHistory.map((pt, i) => (
+                          <tr key={i} className="hover:bg-white/5">
+                            <td className="p-3 font-semibold text-slate-400">{pt.id}</td>
+                            <td className="p-3">{pt.date}</td>
+                            <td className="p-3 font-sans font-medium text-white">{pt.plan}</td>
+                            <td className="p-3 text-right font-bold font-mono">
+                              <span className={pt.amount.startsWith("-") ? "text-red-450" : "text-emerald-400"}>
+                                {pt.amount}
+                              </span>
+                            </td>
+                            <td className="p-3 text-right font-sans text-slate-300">{pt.method}</td>
+                            <td className="p-3 text-right font-sans">
+                              <span className="bg-emerald-950/80 border border-emerald-500/20 text-emerald-400 px-2 py-0.5 rounded font-bold text-[10px]">{pt.status}</span>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
               </div>
             </div>
           )}
@@ -1342,11 +1750,7 @@ export default function EmployerPanel() {
                     <div className="pt-2">
                       <button 
                         type="button" 
-                        onClick={() => {
-                          setIsProfileSaved(true);
-                          addAuditEvent("success", "Профиль сохранен", "HR менеджер успешно обновил личные контактные данные.");
-                          setTimeout(() => setIsProfileSaved(false), 2000);
-                        }}
+                        onClick={handleUpdateProfile}
                         className="cursor-pointer bg-[#E7C768] text-slate-900 font-bold px-4 py-2 rounded-xl text-xs hover:bg-[#F3D78E] shadow"
                       >
                         {isProfileSaved ? "Сохранено! ✓" : "Сохранить профиль"}
@@ -1506,7 +1910,7 @@ export default function EmployerPanel() {
           <div className="flex gap-4 text-xs text-slate-400 font-semibold">
             <button onClick={() => navigate("/main")} className="hover:text-white transition">Главная</button>
             <button onClick={() => navigate("/vacancy")} className="hover:text-white transition">Каталог</button>
-            <button onClick={() => setActiveTab("crm")} className="hover:text-white transition">Панель Руководителя</button>
+            <button onClick={() => navigate("/employer/crm")} className="hover:text-white transition">Панель Руководителя</button>
             <button onClick={() => navigate("/candidate")} className="hover:text-white transition">Панель Кандидата</button>
           </div>
         </div>

@@ -19,6 +19,10 @@ function AppContent() {
     return <CandidateFlow />;
   }
 
+  if (path.startsWith("/employer")) {
+    return <EmployerPanel />;
+  }
+
   // Simple state routing map
   switch (path) {
     case "/main":
@@ -31,7 +35,6 @@ function AppContent() {
       return <JobVacancyLanding />;
     case "/auth":
       return <AuthPage />;
-    case "/employer":
     case "/setup":
       return <EmployerPanel />;
     default:
