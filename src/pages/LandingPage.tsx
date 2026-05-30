@@ -7,6 +7,7 @@ import { useState } from "react";
 import { useRouter } from "../components/RouterContext";
 import Mascot from "../components/Mascot";
 import { BASIC_SPECIALTIES } from "../types";
+import AuthModal from "../components/AuthModal";
 import { 
   Users, 
   Award, 
@@ -39,6 +40,7 @@ export default function LandingPage() {
   const [interviewSystemsCount, setInterviewSystemsCount] = useState(1);
   const [trainingSystemsCount, setTrainingSystemsCount] = useState(1);
   const [showOrderSuccess, setShowOrderSuccess] = useState(false);
+  const [isAuthModalOpen, setIsAuthModalOpen] = useState(path === "/auth");
 
   return (
     <div className="bg-gradient-to-b from-[#17344F] to-[#265582] min-h-screen text-white font-sans antialiased selection:bg-[#E7C768] selection:text-[#1A1A1A] flex flex-col justify-between">
@@ -106,7 +108,7 @@ export default function LandingPage() {
           <div className="hidden md:block">
             <button 
               id="btn_login"
-              onClick={() => navigate("/auth")}
+              onClick={() => setIsAuthModalOpen(true)}
               className="cursor-pointer bg-gradient-to-r from-[#FF1A1A] to-[#E54C00] text-white text-xs md:text-sm font-bold px-4 py-2.5 rounded-xl hover:shadow-lg transition-transform active:scale-95 duration-100"
             >
               Личный кабинет RR
@@ -183,7 +185,7 @@ export default function LandingPage() {
             <button 
               id="mobile_btn_login"
               onClick={() => {
-                navigate("/auth");
+                setIsAuthModalOpen(true);
                 setMobileMenuOpen(false);
               }}
               className="w-full bg-gradient-to-r from-[#FF1A1A] to-[#E54C00] text-white font-bold py-3 rounded-xl text-center shadow-lg transition"
@@ -222,7 +224,7 @@ export default function LandingPage() {
 
             <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-4 mt-2">
               <button
-                onClick={() => navigate("/auth")}
+                onClick={() => setIsAuthModalOpen(true)}
                 className="cursor-pointer bg-gradient-to-r from-[#FF1A1A] to-[#E54C00] text-white font-bold text-base px-6 py-4 rounded-xl text-center shadow-xl hover:shadow-orange-700/20 hover:-translate-y-0.5 active:translate-y-0 transition duration-150"
               >
                 Создать систему онбординга бесплатно
@@ -457,7 +459,7 @@ export default function LandingPage() {
               <div className="pt-6">
                 <button
                   type="button"
-                  onClick={() => navigate("/auth")}
+                  onClick={() => setIsAuthModalOpen(true)}
                   className="w-full bg-gradient-to-r from-amber-400 to-[#E7C768] group-hover:from-amber-300 group-hover:to-amber-400 text-slate-950 font-extrabold py-3.5 px-4 rounded-xl text-center text-xs uppercase tracking-wider transition-all cursor-pointer shadow-md"
                 >
                   Зарегистрироваться по Telegram
@@ -502,7 +504,7 @@ export default function LandingPage() {
               <div className="pt-6">
                 <button
                   type="button"
-                  onClick={() => navigate("/auth")}
+                  onClick={() => setIsAuthModalOpen(true)}
                   className="w-full bg-white/5 hover:bg-white/10 text-white border border-white/15 font-bold py-3.5 px-4 rounded-xl text-center text-xs uppercase tracking-wider transition-all cursor-pointer"
                 >
                   Зарегистрироваться по Google
@@ -839,11 +841,12 @@ export default function LandingPage() {
             <button onClick={() => navigate("/vacancy")} className="hover:text-[#E7C768] transition">Каталог должностей</button>
             <button onClick={() => navigate("/employer")} className="hover:text-white transition">Панель Руководителя</button>
             <button onClick={() => navigate("/candidate")} className="hover:text-white transition">Панель Кандидата</button>
-            <button onClick={() => navigate("/auth")} className="hover:text-white transition font-bold text-[#E7C768]">Авторизация</button>
+            <button onClick={() => setIsAuthModalOpen(true)} className="hover:text-white transition font-bold text-[#E7C768]">Авторизация</button>
           </div>
         </div>
       </footer>
 
+      <AuthModal isOpen={isAuthModalOpen} onClose={() => setIsAuthModalOpen(false)} />
     </div>
   );
 }

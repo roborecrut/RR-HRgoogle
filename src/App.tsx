@@ -6,7 +6,6 @@
 import { RouterProvider, useRouter } from "./components/RouterContext";
 import LandingPage from "./pages/LandingPage";
 import MainCatalogPage from "./pages/MainCatalogPage";
-import AuthPage from "./pages/AuthPage";
 import EmployerPanel from "./pages/EmployerPanel";
 import CandidateFlow from "./pages/CandidateFlow";
 import AdminPanel from "./pages/AdminPanel";
@@ -34,7 +33,7 @@ function AppContent() {
     case "/job":
       return <JobVacancyLanding />;
     case "/auth":
-      return <AuthPage />;
+      return <LandingPage />;
     case "/setup":
       return <EmployerPanel />;
     default:

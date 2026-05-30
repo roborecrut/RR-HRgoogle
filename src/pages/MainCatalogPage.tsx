@@ -7,6 +7,7 @@ import React, { useState } from "react";
 import { useRouter } from "../components/RouterContext";
 import Mascot from "../components/Mascot";
 import { BASIC_SPECIALTIES } from "../types";
+import AuthModal from "../components/AuthModal";
 import { 
   Search, 
   Briefcase, 
@@ -31,6 +32,7 @@ export default function MainCatalogPage() {
   const [selectedSpecialty, setSelectedSpecialty] = useState("Менеджер по продажам");
   const [successMsg, setSuccessMsg] = useState("");
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
 
   // Combine standard positions with any custom Added ones
   const allPositions = [...addedCustomPositions, ...BASIC_SPECIALTIES];
@@ -130,7 +132,7 @@ export default function MainCatalogPage() {
 
           <div className="hidden md:block">
             <button 
-              onClick={() => navigate("/auth")}
+              onClick={() => setIsAuthModalOpen(true)}
               className="cursor-pointer bg-gradient-to-r from-[#FF1A1A] to-[#E54C00] text-white text-xs md:text-sm font-bold px-4 py-2 rounded-xl hover:shadow-lg transition-transform active:scale-95 duration-100"
             >
               Войти / Регистрация 🔑
@@ -207,7 +209,7 @@ export default function MainCatalogPage() {
             <button 
               id="mobile_btn_login"
               onClick={() => {
-                navigate("/auth");
+                setIsAuthModalOpen(true);
                 setMobileMenuOpen(false);
               }}
               className="w-full bg-gradient-to-r from-[#FF1A1A] to-[#E54C00] text-white font-bold py-3 rounded-xl text-center shadow-lg transition"
@@ -432,6 +434,7 @@ export default function MainCatalogPage() {
           </div>
         </div>
       </footer>
+      <AuthModal isOpen={isAuthModalOpen} onClose={() => setIsAuthModalOpen(false)} />
     </div>
   );
 }
