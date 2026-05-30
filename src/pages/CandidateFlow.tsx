@@ -1770,7 +1770,13 @@ export default function CandidateFlow() {
             {/* Score Ring indicator */}
             <div className="flex items-center justify-center py-4">
               <div className="w-32 h-32 rounded-full border-4 border-[#E7C768] bg-amber-950/45 flex flex-col items-center justify-center shadow-md">
-                <span className="text-4xl font-black text-[#E7C768]">{candidate?.scores?.overallScore || 75}</span>
+                <span className="text-4xl font-black text-[#E7C768]">
+                  {Math.round(
+                    ((candidate?.scores?.resumeScore !== undefined ? candidate.scores.resumeScore : 70) +
+                     (candidate?.scores?.checklistScore !== undefined ? candidate.scores.checklistScore : 80) +
+                     (candidate?.scores?.situationsScore !== undefined ? candidate.scores.situationsScore : 75)) / 3
+                  )}
+                </span>
                 <span className="text-[10px] font-bold uppercase text-gray-300 font-mono">Общий балл</span>
               </div>
             </div>

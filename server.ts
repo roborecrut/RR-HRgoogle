@@ -81,9 +81,11 @@ db.candidates.push({
   scores: {
     interviewScore: 82,
     resumeScore: 78,
+    checklistScore: 80,
+    situationsScore: 75,
     checklistPoints: 8,
     roleplayPoints: 8,
-    overallScore: 80,
+    overallScore: 78,
     assessmentSummary: "Кандидат демонстрирует уверенные навыки коммуникации. Есть опыт работы с CRM. Необходимо подтянуть работу с возражениями 'дорого' и изучить продукт 'PromoAI' детально."
   },
   registeredVia: "telegram",
@@ -734,8 +736,8 @@ ${answers.map((a: any, i: number) => `Кейс ${i+1}: "${a.question}"\nОтве
     candidate.scores.roleplayPoints = Math.round(situationsScore / 10);
 
     // Calculate final scores
-    const rScore = candidate.scores.resumeScore || 70;
-    const cScore = candidate.scores.checklistScore || 75;
+    const rScore = candidate.scores.resumeScore !== undefined ? candidate.scores.resumeScore : 70;
+    const cScore = candidate.scores.checklistScore !== undefined ? candidate.scores.checklistScore : 80;
     const sScore = situationsScore;
     const overallScore = Math.round((rScore + cScore + sScore) / 3);
 
