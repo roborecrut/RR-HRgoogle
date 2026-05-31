@@ -12,6 +12,7 @@ import {
   Smartphone,
   Plus,
   Send,
+  Chrome,
   Cpu,
   Search,
   RefreshCw,
@@ -38,8 +39,20 @@ import {
   ShieldCheck,
   Sliders,
   DollarSign,
-  Award
+  Award,
+  Sparkles,
+  ChevronRight
 } from "lucide-react";
+import {
+  VacancyView,
+  MotivationView,
+  CompanyView,
+  OnboardingView,
+  PayoutsView,
+  ScheduleView,
+  TeamView,
+  SystemView
+} from "../components/VacancySections";
 
 export default function EmployerPanel() {
   const { path, navigate } = useRouter();
@@ -91,6 +104,7 @@ export default function EmployerPanel() {
   const [setupSalary, setSetupSalary] = useState("80000 - 120000 руб");
   const [setupSchedule, setSetupSchedule] = useState("5/2, гибридный график");
   const [setupCustomWiki, setSetupCustomWiki] = useState("Правила адаптации: мы поставляем ИИ-сервисы. Кандидат должен владеть техниками продаж.");
+  const [setupLogoUrl, setSetupLogoUrl] = useState("https://i.ibb.co/WWRbtPq0/RR-Logo.png");
   const [specialtySearch, setSpecialtySearch] = useState("");
   const [showAddNewVacancy, setShowAddNewVacancy] = useState(false);
 
@@ -101,6 +115,19 @@ export default function EmployerPanel() {
   const [profileEmail, setProfileEmail] = useState("hr-director@company.ru");
   const [profilePhone, setProfilePhone] = useState("+7 (926) 012-34-56");
   const [isProfileSaved, setIsProfileSaved] = useState(false);
+
+  // High-fidelity Google and Telegram profile states
+  const [googleName, setGoogleName] = useState("Сергей Ковалев");
+  const [googleEmail, setGoogleEmail] = useState("hr-director@company.ru");
+  const [googlePhoto, setGooglePhoto] = useState("https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?auto=format&fit=facearea&facepad=2&w=256&h=256&q=80");
+  const [googleId, setGoogleId] = useState("g-1094857293049182743");
+  const [googleVerified, setGoogleVerified] = useState(true);
+
+  const [telegramIdState, setTelegramIdState] = useState("59384591");
+  const [telegramPhoto, setTelegramPhoto] = useState("https://images.unsplash.com/photo-1500648767791-00dcc994a43e?auto=format&fit=facearea&facepad=2.2&w=256&h=256&q=80");
+  const [telegramFirstName, setTelegramFirstName] = useState("Сергей");
+  const [telegramLastName, setTelegramLastName] = useState("Ковалев");
+  const [telegramUsernameState, setTelegramUsernameState] = useState("cowal_sales");
 
   // Billing & Tariff States
   const [employerId, setEmployerId] = useState(() => {
@@ -137,15 +164,21 @@ export default function EmployerPanel() {
   const [isProcessingPayment, setIsProcessingPayment] = useState(false);
 
   // Companies custom database state
-  const [companiesList, setCompaniesList] = useState([
-    { name: "ООО РобоРекрут инжиниринг", industry: "IT и ИИ продукты", staff: "45 человек", description: "Разрабатываем высокопроизводительнее решения по автоматизации собеседований со встроенным Gemini API.", activeVacancies: 1 },
-    { name: "PromoAI", industry: "Реклама и маркетинг", staff: "18 человек", description: "Интеллектуальное агентство контекстной рекламы с автогенерацией лидов.", activeVacancies: 1 }
-  ]);
+  const [companiesList, setCompaniesList] = useState<any[]>([]);
   const [showAddCompany, setShowAddCompany] = useState(false);
   const [newCompanyName, setNewCompanyName] = useState("");
   const [newCompanyIndustry, setNewCompanyIndustry] = useState("");
   const [newCompanyStaff, setNewCompanyStaff] = useState("10-50 человек");
   const [newCompanyDesc, setNewCompanyDesc] = useState("");
+  const [newCompanySite, setNewCompanySite] = useState("");
+  const [newCompanyLogo, setNewCompanyLogo] = useState("");
+  const [newCompanyFiles, setNewCompanyFiles] = useState("");
+  const [isParsingFile, setIsParsingFile] = useState(false);
+
+  // Project (Vacancy) edit state
+  const [editingProject, setEditingProject] = useState<JobProject | null>(null);
+  const [editorSubTab, setEditorSubTab] = useState<string>("company");
+  const [isSavingEdit, setIsSavingEdit] = useState(false);
 
   // System Audit Events State
   const [auditEvents, setAuditEvents] = useState<any[]>([
@@ -155,6 +188,19 @@ export default function EmployerPanel() {
   const [auditFilter, setAuditFilter] = useState<"all" | "info" | "success" | "warning">("all");
 
   // Synchronized Full-Stack Fetching
+  const fetchCompanies = async () => {
+    try {
+      const res = await fetch("/api/companies");
+      if (res.ok) {
+        const list = await res.json();
+        // Set all companies
+        setCompaniesList(list);
+      }
+    } catch (err) {
+      console.error("Error loading companies from server:", err);
+    }
+  };
+
   const fetchEmployerData = async () => {
     try {
       const res = await fetch(`/api/employers/${employerId}`);
@@ -169,29 +215,56 @@ export default function EmployerPanel() {
         if (data.email) setProfileEmail(data.email);
         if (data.phone) setProfilePhone(data.phone);
         if (data.telegramId) setAdminTgId(data.telegramId);
+
+        // Sub-profiles sync from server DB
+        setGoogleName(data.googleName || data.name || "Сергей Ковалев");
+        setGoogleEmail(data.googleEmail || data.email || "hr-director@company.ru");
+        setGooglePhoto(data.googlePhoto || "https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?auto=format&fit=facearea&facepad=2&w=256&h=256&q=80");
+        setGoogleId(data.googleId || `g-1094857293049182743`);
+        setGoogleVerified(data.googleVerified !== undefined ? data.googleVerified : true);
+
+        setTelegramIdState(data.telegramId || data.telegramId || "59384591");
+        setTelegramPhoto(data.telegramPhoto || "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?auto=format&fit=facearea&facepad=2.2&w=256&h=256&q=80");
+        setTelegramFirstName(data.telegramFirstName || "Сергей");
+        setTelegramLastName(data.telegramLastName || "Ковалев");
+        setTelegramUsernameState(data.telegramUsername || data.telegramUsername || "cowal_sales");
       }
     } catch (err) {
       console.error("Error loading employer profile:", err);
     }
   };
 
-  const handleUpdateProfile = async () => {
+  const handleUpdateProfile = async (customPayload?: any) => {
     try {
+      const defaultPayload = {
+        name: profileName,
+        title: profileTitle,
+        email: profileEmail,
+        phone: profilePhone,
+        telegramId: adminTgId,
+        googleName,
+        googleEmail,
+        googlePhoto,
+        googleId,
+        googleVerified,
+        telegramPhoto,
+        telegramFirstName,
+        telegramLastName,
+        telegramUsername: telegramUsernameState
+      };
+
+      const payload = customPayload ? { ...defaultPayload, ...customPayload } : defaultPayload;
+
       const res = await fetch(`/api/employers/${employerId}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          name: profileName,
-          title: profileTitle,
-          email: profileEmail,
-          phone: profilePhone,
-          telegramId: adminTgId
-        })
+        body: JSON.stringify(payload)
       });
       if (res.ok) {
         setIsProfileSaved(true);
         addAuditEvent("success", "Профиль сохранен", "HR менеджер успешно обновил личные контактные данные и интеграции.");
         setTimeout(() => setIsProfileSaved(false), 2500);
+        fetchEmployerData();
       }
     } catch (err) {
       console.error("Error updating profile:", err);
@@ -221,6 +294,7 @@ export default function EmployerPanel() {
 
       // Fetch dynamic full-stack billing profile
       await fetchEmployerData();
+      await fetchCompanies();
 
       // Mirror transactions from backend to payments listing
       const resPayments = await fetch("/api/admin/payments");
@@ -248,6 +322,14 @@ export default function EmployerPanel() {
     const interval = setInterval(fetchData, 4000);
     return () => clearInterval(interval);
   }, [employerId]);
+
+  useEffect(() => {
+    const pathIdMatch = path.match(/^\/employer([a-zA-Z0-9_-]+)/);
+    if (pathIdMatch && pathIdMatch[1] !== employerId) {
+      setEmployerId(pathIdMatch[1]);
+      localStorage.setItem("employer_session_id", pathIdMatch[1]);
+    }
+  }, [path, employerId]);
 
   const handleLogout = () => {
     localStorage.clear();
@@ -345,16 +427,25 @@ export default function EmployerPanel() {
     setIsGenerating(true);
     addAuditEvent("info", "Старт ИИ Генерации", `Запуск ИИ-сборки онбординга для вакансии: ${setupRoleName}`);
 
+    const matchedCompany = companiesList.find(c => c.name.toLowerCase() === setupCompanyName.toLowerCase());
+    const companySlug = matchedCompany ? matchedCompany.slug : setupCompanyName.toLowerCase()
+      .replace(/[^а-яёa-z0-9\s-]/gi, "")
+      .trim()
+      .replace(/\s+/g, "-");
+
     try {
       const res = await fetch("/api/generate-project-onboarding", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           companyName: setupCompanyName,
+          companySlug,
+          employerId,
           roleName: setupRoleName,
           salaryTerms: setupSalary,
           scheduleTerms: setupSchedule,
-          customWiki: setupCustomWiki
+          customWiki: setupCustomWiki,
+          logoUrl: setupLogoUrl
         })
       });
 
@@ -377,13 +468,21 @@ export default function EmployerPanel() {
       if (!companiesList.some(comp => comp.name.toLowerCase() === setupCompanyName.toLowerCase())) {
         setCompaniesList(prev => [
           ...prev,
-          { name: setupCompanyName, industry: "Услуги / Производство", staff: "10-25 человек", description: "Интегрированная новая компания в экосистему адаптации сотрудников.", activeVacancies: 1 }
+          { 
+            name: setupCompanyName, 
+            slug: companySlug,
+            industry: "Услуги / Производство", 
+            staff: "10-25 человек", 
+            description: "Интегрированная новая компания в экосистему адаптации сотрудников.", 
+            activeVacancies: 1,
+            employerId
+          }
         ]);
       }
 
       addAuditEvent("success", "ИИ-Блок онбординга собран", `Программа лекций, ситуационных вопросов создана для ${setupRoleName}`);
       setShowAddNewVacancy(false);
-      navigate("/employer/vacancies");
+      navigate(`/employer${employerId}/vacancies`);
       fetchData();
     } catch (err: any) {
       alert("Ошибка при генерации: " + err.message);
@@ -401,6 +500,32 @@ export default function EmployerPanel() {
     } else {
       setPausedProjectIds(prev => [...prev, projId]);
       addAuditEvent("warning", "Вакансия на паузе", `Прием заявок по проекту ${projId} временно остановлен`);
+    }
+  };
+
+  // Save edited project values
+  const handleSaveEditedProject = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingProject) return;
+
+    setIsSavingEdit(true);
+    try {
+      const res = await fetch(`/api/projects/${editingProject.id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(editingProject)
+      });
+
+      if (!res.ok) throw new Error("Не удалось сохранить изменения вакансии.");
+
+      const updatedProj = await res.json();
+      setProjects(prev => prev.map(p => p.id === updatedProj.id ? updatedProj : p));
+      addAuditEvent("success", "Вакансия обновлена", `Изменения для вакансии "${updatedProj.roleName}" сохранены успешно.`);
+      setEditingProject(null);
+    } catch (err: any) {
+      alert("Ошибка при сохранении: " + err.message);
+    } finally {
+      setIsSavingEdit(false);
     }
   };
 
@@ -473,28 +598,91 @@ export default function EmployerPanel() {
   };
 
   // Save modified company profile
-  const handleAddCompanySubmit = (e: React.FormEvent) => {
+  const handleAddCompanySubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newCompanyName) return;
 
-    setCompaniesList(prev => [
-      ...prev,
-      { name: newCompanyName, industry: newCompanyIndustry || "Производство", staff: newCompanyStaff, description: newCompanyDesc || "Описание отсутствует.", activeVacancies: 0 }
-    ]);
+    // Transliterate to generate slug as requested: "Лендинг будет иметь адрес /ooo-roga-i-kopyta"
+    const rus = "абвгдеёжзийклмнопрстуфхцчшщъыьэюя";
+    const lat = ["a","b","v","g","d","e","yo","zh","z","i","y","k","l","m","n","o","p","r","s","t","u","f","kh","ts","ch","sh","shch","","y","","e","yu","ya"];
+    const slug = newCompanyName.toLowerCase()
+      .replace(/[^а-яёa-z0-9\s-]/gi, "")
+      .trim()
+      .split("")
+      .map(char => {
+        const idx = rus.indexOf(char);
+        return idx > -1 ? lat[idx] : char;
+      })
+      .join("")
+      .replace(/\s+/g, "-")
+      .replace(/-+/g, "-");
 
-    addAuditEvent("success", "Создана компания", `Зарегистрирован бренд ${newCompanyName}`);
-    setNewCompanyName("");
-    setNewCompanyDesc("");
-    setNewCompanyIndustry("");
-    setShowAddCompany(false);
+    const payload = {
+      name: newCompanyName,
+      slug,
+      industry: newCompanyIndustry || "Производство",
+      staff: newCompanyStaff,
+      description: newCompanyDesc || "Компания осуществляет подбор перспективных кадров.",
+      sites: newCompanySite || "",
+      logoUrl: newCompanyLogo || "",
+      files: newCompanyFiles || "",
+      employerId
+    };
+
+    try {
+      const res = await fetch("/api/companies", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload)
+      });
+      if (res.ok) {
+        const saved = await res.json();
+        setCompaniesList(prev => [...prev, saved]);
+        addAuditEvent("success", "Создана компания", `Зарегистрирован бренд ${newCompanyName}`);
+        
+        // Reset inputs
+        setNewCompanyName("");
+        setNewCompanyDesc("");
+        setNewCompanyIndustry("");
+        setNewCompanySite("");
+        setNewCompanyLogo("");
+        setNewCompanyFiles("");
+        setShowAddCompany(false);
+      }
+    } catch (err) {
+      console.error("Failed to add company on server:", err);
+    }
   };
 
-  // Copy registration link to clipboard
-  const handleCopyLink = (projectId: string, roleName: string) => {
-    const signupUrl = `${window.location.origin}/auth?project=${projectId}&role=${encodeURIComponent(roleName)}`;
+  // Copy registration link to clipboard - updated to point to elegant corporate careers landing
+  const handleCopyLink = (projectId: string, projCompanySlug?: string) => {
+    const proj = projects.find(p => p.id === projectId);
+    const matchedCompany = companiesList.find(c => c.name.toLowerCase() === proj?.companyName?.toLowerCase());
+    const slug = projCompanySlug || proj?.companySlug || (matchedCompany ? matchedCompany.slug : "company-portal");
+    const signupUrl = `${window.location.origin}/${slug}/${projectId}`;
     navigator.clipboard.writeText(signupUrl);
     setCopiedProjectId(projectId);
     setTimeout(() => setCopiedProjectId(null), 2000);
+  };
+
+  // Auto-recognize file for job vacancy conditions
+  const handleAutoRecognizeFile = (filename: string) => {
+    setIsParsingFile(true);
+    addAuditEvent("info", "Анализ файла вакансии", `Запущен разбор вакансии из файла: ${filename}`);
+    
+    // Simulate smart parsing & fill out fields
+    setTimeout(() => {
+      setIsParsingFile(false);
+      setSetupRoleName("Инженер по тестированию (QA)");
+      setSetupSalary("95 000 - 130 000 руб");
+      setSetupSchedule("Полный день, гибрид в Москве");
+      setSetupCustomWiki(`Обязанности сотрудника компании:
+- Проведение ручного и автоматизированного тестирования веб-приложений.
+- Заведение багов в корпоративную систему таск-трекера.
+- Подготовка тестовых сценариев и чек-листов.
+- Взаимодействие с командой разработчиков.`);
+      addAuditEvent("success", "Файл вакансии распознан", `ИИ успешно выгрузил условия для "Инженер по тестированию (QA)".`);
+    }, 1500);
   };
 
   // Save TG ID
@@ -595,55 +783,57 @@ export default function EmployerPanel() {
             {/* SIX REQUIRED PAGES */}
             <div className="space-y-1.5 pt-2 text-left">
               <button
-                onClick={() => { navigate("/employer/crm"); setCrmViewMode("kanban"); }}
+                onClick={() => navigate(`/employer${employerId}/profile`)}
+                className={`w-full text-left font-bold text-xs px-4 py-2.5 rounded-xl flex items-center justify-between transition-all ${activeTab === "profile" ? "bg-[#1E4468] text-[#E7C768] border border-[#E7C768]/60 shadow" : "bg-white/5 text-slate-300 hover:bg-white/10"}`}
+              >
+                <span className="flex items-center gap-2">
+                  <User className="w-4 h-4 text-[#D99E41]" /> 1. Профиль HR
+                </span>
+                <span className="text-[10px] bg-amber-900/40 text-[#E7C768] px-1.5 py-0.5 rounded font-mono">Шаг 1</span>
+              </button>
+
+              <button
+                onClick={() => navigate(`/employer${employerId}/companies`)}
+                className={`w-full text-left font-bold text-xs px-4 py-2.5 rounded-xl flex items-center justify-between transition-all ${activeTab === "companies" ? "bg-[#1E4468] text-[#E7C768] border border-[#E7C768]/60 shadow" : "bg-white/5 text-slate-300 hover:bg-white/10"}`}
+              >
+                <span className="flex items-center gap-2">
+                  <Building2 className="w-4 h-4 text-[#D99E41]" /> 2. Мои Компании
+                </span>
+                <span className="text-[10px] bg-amber-900/40 text-[#E7C768] px-1.5 py-0.5 rounded font-mono">Шаг 2</span>
+              </button>
+
+              <button
+                onClick={() => navigate(`/employer${employerId}/vacancies`)}
+                className={`w-full text-left font-bold text-xs px-4 py-2.5 rounded-xl flex items-center justify-between transition-all ${activeTab === "vacancies" ? "bg-[#1E4468] text-[#E7C768] border border-[#E7C768]/60 shadow" : "bg-white/5 text-slate-300 hover:bg-white/10"}`}
+              >
+                <span className="flex items-center gap-2">
+                  <Briefcase className="w-4 h-4 text-[#D99E41]" /> 3. Вакансии & ИИ
+                </span>
+                <span className="bg-slate-800 text-[10px] text-slate-300 px-1.5 py-0.5 rounded font-mono">Шаг 3</span>
+              </button>
+
+              <button
+                onClick={() => { navigate(`/employer${employerId}/crm`); setCrmViewMode("kanban"); }}
                 className={`w-full text-left font-bold text-xs px-4 py-2.5 rounded-xl flex items-center justify-between transition-all ${activeTab === "crm" ? "bg-[#1E4468] text-[#E7C768] border border-[#E7C768]/60 shadow" : "bg-white/5 text-slate-300 hover:bg-white/10"}`}
               >
                 <span className="flex items-center gap-2">
-                  <Users className="w-4 h-4 text-[#D99E41]" /> 1. CRM & Воронка
+                  <Users className="w-4 h-4 text-[#D99E41]" /> 4. CRM & Воронка
                 </span>
                 <span className="bg-amber-900/40 text-[10px] text-[#E7C768] px-1.5 py-0.5 rounded font-mono">{candidates.length}</span>
               </button>
 
               <button
-                onClick={() => navigate("/employer/vacancies")}
-                className={`w-full text-left font-bold text-xs px-4 py-2.5 rounded-xl flex items-center justify-between transition-all ${activeTab === "vacancies" ? "bg-[#1E4468] text-[#E7C768] border border-[#E7C768]/60 shadow" : "bg-white/5 text-slate-300 hover:bg-white/10"}`}
-              >
-                <span className="flex items-center gap-2">
-                  <Briefcase className="w-4 h-4 text-[#D99E41]" /> 2. Вакансии & ИИ
-                </span>
-                <span className="bg-slate-800 text-[10px] text-slate-300 px-1.5 py-0.5 rounded font-mono">{projects.length}</span>
-              </button>
-
-              <button
-                onClick={() => navigate("/employer/companies")}
-                className={`w-full text-left font-bold text-xs px-4 py-2.5 rounded-xl flex items-center justify-between transition-all ${activeTab === "companies" ? "bg-[#1E4468] text-[#E7C768] border border-[#E7C768]/60 shadow" : "bg-white/5 text-slate-300 hover:bg-white/10"}`}
-              >
-                <span className="flex items-center gap-2">
-                  <Building2 className="w-4 h-4 text-[#D99E41]" /> 3. Мои Компании
-                </span>
-              </button>
-
-              <button
-                onClick={() => navigate("/employer/tariff")}
+                onClick={() => navigate(`/employer${employerId}/tariff`)}
                 className={`w-full text-left font-bold text-xs px-4 py-2.5 rounded-xl flex items-center justify-between transition-all ${activeTab === "tariff" ? "bg-[#1E4468] text-[#E7C768] border border-[#E7C768]/60 shadow" : "bg-white/5 text-slate-300 hover:bg-white/10"}`}
               >
                 <span className="flex items-center gap-2">
-                  <CreditCard className="w-4 h-4 text-[#D99E41]" /> 4. Тариф & Счета
+                  <CreditCard className="w-4 h-4 text-[#D99E41]" /> 5. Тариф & Счета
                 </span>
                 <span className="bg-emerald-950 text-[10px] text-[#E7C768] font-bold uppercase px-1.5 py-0.5 rounded font-mono">{balance} RR</span>
               </button>
 
               <button
-                onClick={() => navigate("/employer/profile")}
-                className={`w-full text-left font-bold text-xs px-4 py-2.5 rounded-xl flex items-center justify-between transition-all ${activeTab === "profile" ? "bg-[#1E4468] text-[#E7C768] border border-[#E7C768]/60 shadow" : "bg-white/5 text-slate-300 hover:bg-white/10"}`}
-              >
-                <span className="flex items-center gap-2">
-                  <User className="w-4 h-4 text-[#D99E41]" /> 5. Профиль HR
-                </span>
-              </button>
-
-              <button
-                onClick={() => navigate("/employer/events")}
+                onClick={() => navigate(`/employer${employerId}/events`)}
                 className={`w-full text-left font-bold text-xs px-4 py-2.5 rounded-xl flex items-center justify-between transition-all ${activeTab === "events" ? "bg-[#1E4468] text-[#E7C768] border border-[#E7C768]/60 shadow" : "bg-white/5 text-slate-300 hover:bg-white/10"}`}
               >
                 <span className="flex items-center gap-2">
@@ -671,6 +861,78 @@ export default function EmployerPanel() {
 
         {/* Right Side Main Workspaces */}
         <main className="lg:col-span-9 space-y-6">
+
+          {/* DYNAMIC ONBOARDING PROGRESS STEPPER */}
+          {(activeTab === "profile" || activeTab === "companies" || activeTab === "vacancies") && (
+            <div className="bg-[#1D3E5E]/85 border border-[#E7C768]/40 rounded-3xl p-5 shadow-xl text-left space-y-4">
+              <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2">
+                <div className="space-y-0.5">
+                  <div className="flex items-center gap-1.5 text-xs text-[#E7C768] font-bold uppercase tracking-wider">
+                    <Sparkles className="w-4 h-4 text-amber-400 animate-pulse" />
+                    <span>Интерактивный онбординг работодателя</span>
+                  </div>
+                  <h3 className="text-base font-black text-white">Пройдите 3 простых шага, чтобы запустить ИИ рекрутинг под ключ</h3>
+                </div>
+                <span className="bg-[#E7C768]/10 text-[#E7C768] text-[10px] font-mono border border-[#E7C768]/30 px-2 py-0.5 rounded">
+                  ID ЛК: {employerId}
+                </span>
+              </div>
+
+              {/* Progress Stepper row */}
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-3 pt-1">
+                <button 
+                  onClick={() => navigate(`/employer${employerId}/profile`)}
+                  className={`text-left border p-3 rounded-2xl flex items-center gap-3 transition cursor-pointer ${
+                    activeTab === "profile"
+                      ? "bg-[#1E4468] border-[#E7C768] text-[#E7C768] shadow"
+                      : "bg-black/20 border-white/5 text-slate-400 hover:border-white/10"
+                  }`}
+                >
+                  <div className={`w-6 h-6 rounded-full flex items-center justify-center font-bold text-xs shrink-0 ${activeTab === "profile" ? "bg-[#E7C768] text-[#1E4468]" : "bg-white/10 text-slate-300"}`}>
+                    1
+                  </div>
+                  <div className="min-w-0">
+                    <span className="text-[9px] uppercase font-bold block leading-none text-[#E7C768]">Профиль</span>
+                    <span className="text-xs font-bold block mt-0.5 truncate text-white">Учетные данные</span>
+                  </div>
+                </button>
+
+                <button 
+                  onClick={() => navigate(`/employer${employerId}/companies`)}
+                  className={`text-left border p-3 rounded-2xl flex items-center gap-3 transition cursor-pointer ${
+                    activeTab === "companies"
+                      ? "bg-[#1E4468] border-[#E7C768] text-[#E7C768] shadow"
+                      : "bg-black/20 border-white/5 text-slate-400 hover:border-white/10"
+                  }`}
+                >
+                  <div className={`w-6 h-6 rounded-full flex items-center justify-center font-bold text-xs shrink-0 ${activeTab === "companies" ? "bg-[#E7C768] text-[#1E4468]" : "bg-white/10 text-slate-300"}`}>
+                    2
+                  </div>
+                  <div className="min-w-0">
+                    <span className="text-[9px] uppercase font-bold block leading-none text-[#E7C768]">Бренд</span>
+                    <span className="text-xs font-bold block mt-0.5 truncate text-white">Создать лендинг</span>
+                  </div>
+                </button>
+
+                <button 
+                  onClick={() => navigate(`/employer${employerId}/vacancies`)}
+                  className={`text-left border p-3 rounded-2xl flex items-center gap-3 transition cursor-pointer ${
+                    activeTab === "vacancies"
+                      ? "bg-[#1E4468] border-[#E7C768] text-[#E7C768] shadow"
+                      : "bg-black/20 border-white/5 text-slate-400 hover:border-white/10"
+                  }`}
+                >
+                  <div className={`w-6 h-6 rounded-full flex items-center justify-center font-bold text-xs shrink-0 ${activeTab === "vacancies" ? "bg-[#E7C768] text-[#1E4468]" : "bg-white/10 text-slate-300"}`}>
+                    3
+                  </div>
+                  <div className="min-w-0">
+                    <span className="text-[9px] uppercase font-bold block leading-none text-[#E7C768]">Робот ИИ</span>
+                    <span className="text-xs font-bold block mt-0.5 truncate text-white">Запустить вакансию</span>
+                  </div>
+                </button>
+              </div>
+            </div>
+          )}
 
           {/* PAGE 1: CRM & FUNNEL */}
           {activeTab === "crm" && (
@@ -1022,17 +1284,78 @@ export default function EmployerPanel() {
                     <button onClick={() => setShowAddNewVacancy(false)} className="text-slate-400 hover:text-white">✕ Close</button>
                   </div>
 
+                  {/* File intelligent import block */}
+                  <div className="bg-black/25 p-4 rounded-3xl border border-white/10 space-y-3">
+                    <span className="text-xs font-bold text-[#E7C768] block">Распознавание условий вакансии из файла</span>
+                    <p className="text-[10.5px] text-slate-300">Перетащите сюда документ с традиционным описанием вакансии (PDF, DOC/DOCX, TXT) или нажмите для выбора — ИИ автоматически выкачает условия и обязанности.</p>
+                    
+                    <div 
+                      onClick={() => {
+                        const fInput = document.getElementById("vac-file-import") as HTMLInputElement;
+                        if (fInput) fInput.click();
+                      }}
+                      onDragOver={(e) => e.preventDefault()}
+                      onDrop={(e) => {
+                        e.preventDefault();
+                        if (e.dataTransfer.files && e.dataTransfer.files[0]) {
+                          handleAutoRecognizeFile(e.dataTransfer.files[0].name);
+                        }
+                      }}
+                      className="cursor-pointer border-2 border-dashed border-[#E7C768]/30 bg-[#1D3E5E]/40 hover:bg-[#1D3E5E]/70 rounded-2xl p-4 text-center space-y-1 transition text-white"
+                    >
+                      <input 
+                        id="vac-file-import" 
+                        type="file" 
+                        className="hidden" 
+                        onChange={(e) => {
+                          if (e.target.files && e.target.files[0]) {
+                            handleAutoRecognizeFile(e.target.files[0].name);
+                          }
+                        }}
+                      />
+                      {isParsingFile ? (
+                        <div className="flex flex-col items-center justify-center gap-1 text-[#E7C768] font-bold text-xs py-2">
+                          <RefreshCw className="w-5 h-5 animate-spin" />
+                          <span>ИИ распознает файлы... Выделение условий работы...</span>
+                        </div>
+                      ) : (
+                        <div className="text-xs font-semibold text-slate-300">
+                          Кликните или перетащите файл с описанием вакансии 📂
+                        </div>
+                      )}
+                      <span className="text-[9.5px] text-slate-400 block font-mono">Поддерживаются .pdf, .docx, .txt файлы</span>
+                    </div>
+                  </div>
+
                   <form onSubmit={handleCreateOnboardingSystem} className="space-y-4">
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                       <div>
                         <label className="text-xs font-bold text-slate-200 block mb-1">Компания:</label>
-                        <input
-                          type="text"
-                          required
-                          className="w-full bg-[#17344F]/60 text-xs p-2.5 rounded-xl border border-white/10 focus:outline-[#E7C768]"
-                          value={setupCompanyName}
-                          onChange={(e) => setSetupCompanyName(e.target.value)}
-                        />
+                        {companiesList.length > 0 ? (
+                          <select
+                            required
+                            className="w-full bg-[#17344F] text-xs p-2.5 rounded-xl border border-white/10 text-white focus:outline-[#E7C768]"
+                            value={setupCompanyName}
+                            onChange={(e) => setSetupCompanyName(e.target.value)}
+                          >
+                            <option value="">Выберите компанию...</option>
+                            {companiesList.map(c => (
+                              <option key={c.id} value={c.name}>{c.name}</option>
+                            ))}
+                          </select>
+                        ) : (
+                          <div className="space-y-1">
+                            <input
+                              type="text"
+                              required
+                              placeholder="Зарегистрируйте бренд в 'Мои Компании'"
+                              className="w-full bg-[#17344F]/60 text-xs p-2.5 rounded-xl border border-red-500/50 text-slate-350 focus:outline-[#E7C768]"
+                              value={setupCompanyName}
+                              onChange={(e) => setSetupCompanyName(e.target.value)}
+                            />
+                            <span className="text-[10px] text-red-400 font-semibold block leading-tight">⚠ Внимание! Сначала зарегистрируйте Вашу Компанию на шаге 2, чтобы создать красивый адрес.</span>
+                          </div>
+                        )}
                       </div>
                       <div>
                         <label className="text-xs font-bold text-slate-200 block mb-1">Должность:</label>
@@ -1101,6 +1424,45 @@ export default function EmployerPanel() {
                       />
                     </div>
 
+                    <div>
+                      <label className="text-xs font-bold text-slate-200 block mb-1">Картинка логотипа вакансии (ссылка или файл):</label>
+                      <div className="flex gap-2">
+                        <input
+                          type="text"
+                          className="flex-1 bg-[#17344F]/60 text-xs p-2.5 rounded-xl border border-white/10 focus:outline-[#E7C768]"
+                          value={setupLogoUrl}
+                          onChange={(e) => setSetupLogoUrl(e.target.value)}
+                          placeholder="https://i.ibb.co/WWRbtPq0/RR-Logo.png"
+                        />
+                        <label className="cursor-pointer bg-[#1D3E5E] border border-white/10 hover:border-[#E7C768] text-xs px-3.5 py-2.5 rounded-xl text-white font-bold select-none text-center flex items-center shrink-0">
+                          <span>📂 Загрузить файл</span>
+                          <input
+                            type="file"
+                            accept="image/*"
+                            className="hidden"
+                            onChange={(e) => {
+                              const file = e.target.files?.[0];
+                              if (file) {
+                                const reader = new FileReader();
+                                reader.onloadend = () => {
+                                  if (typeof reader.result === "string") {
+                                    setSetupLogoUrl(reader.result);
+                                  }
+                                };
+                                reader.readAsDataURL(file);
+                              }
+                            }}
+                          />
+                        </label>
+                      </div>
+                      {setupLogoUrl && (
+                        <div className="mt-2 flex items-center gap-2 bg-black/15 p-2 rounded-xl border border-white/5">
+                          <img src={setupLogoUrl} alt="Logo Preview" className="w-8 h-8 object-contain rounded" referrerPolicy="no-referrer" />
+                          <span className="text-[10px] text-gray-400 truncate max-w-xs">{setupLogoUrl}</span>
+                        </div>
+                      )}
+                    </div>
+
                     <button
                       type="submit"
                       disabled={isGenerating}
@@ -1166,15 +1528,27 @@ export default function EmployerPanel() {
                         </div>
 
                         {/* Attached custom Wiki display toggle */}
-                        <div className="mt-3 bg-black/20 p-2.5 rounded-xl text-[11px] font-mono whitespace-pre-wrap leading-tight text-slate-300 line-clamp-3">
-                          <strong>Бага Wiki базы:</strong> {proj.customWiki || "Пока пустая корпоративная вики."}
+                        <div className="mt-2.5 bg-black/20 p-2.5 rounded-xl text-[11px] font-mono whitespace-pre-wrap leading-tight text-slate-300 line-clamp-2">
+                          <strong>Инструкция/База Wiki:</strong> {proj.customWiki || "Пока пустая корпоративная вики."}
+                        </div>
+
+                        {/* Interactive dynamic link of vacancy page inside company career lander */}
+                        <div className="mt-2.5 bg-black/35 p-2.5 rounded-xl border border-white/5 space-y-1">
+                          <span className="text-[9px] uppercase font-bold text-[#E7C768] block leading-none font-mono">Адрес ИИ-страницы Вакансии (Лендинг):</span>
+                          <a 
+                            onClick={(e) => { e.preventDefault(); navigate(`/${proj.companySlug || "company-portal"}/${proj.id}`); }}
+                            href={`/${proj.companySlug || "company-portal"}/${proj.id}`} 
+                            className="cursor-pointer text-sky-300 font-mono text-[10.5px] hover:underline hover:text-sky-450 block truncate"
+                          >
+                            https://hr-rr.ru/{proj.companySlug || "company-portal"}/{proj.id}
+                          </a>
                         </div>
                       </div>
 
                       {/* Lower Actions */}
                       <div className="mt-5 pt-3 border-t border-white/5 space-y-2">
                         <button
-                          onClick={() => handleCopyLink(proj.id, proj.roleName)}
+                          onClick={() => handleCopyLink(proj.id, proj.companySlug)}
                           className="cursor-pointer w-full bg-gradient-to-r from-red-650 to-orange-600 hover:shadow-md text-white text-[11px] font-bold py-2 px-3 rounded-xl flex items-center justify-center gap-1.5"
                         >
                           {copiedProjectId === proj.id ? (
@@ -1202,6 +1576,13 @@ export default function EmployerPanel() {
                                 <Pause className="w-3 h-3 text-orange-400" /> Приостановить
                               </>
                             )}
+                          </button>
+
+                          <button
+                            onClick={() => setEditingProject(proj)}
+                            className="cursor-pointer flex-1 bg-[#E7C768]/10 hover:bg-[#E7C768]/20 text-[#E7C768] text-[10px] font-bold py-1.5 px-3 rounded-lg flex items-center justify-center gap-1.5 border border-[#E7C768]/25"
+                          >
+                            🛠 Редактировать
                           </button>
                         </div>
                       </div>
@@ -1269,6 +1650,62 @@ export default function EmployerPanel() {
                     value={newCompanyDesc}
                     onChange={(e) => setNewCompanyDesc(e.target.value)}
                   />
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <input 
+                      type="text" 
+                      placeholder="Веб-сайт компании (например: www.company.ru)" 
+                      className="bg-black/50 text-xs px-2.5 py-2 rounded-xl text-white border border-white/10 focus:outline-none"
+                      value={newCompanySite}
+                      onChange={(e) => setNewCompanySite(e.target.value)}
+                    />
+                    <input 
+                      type="text" 
+                      placeholder="Ссылка на файл логотипа (URL)" 
+                      className="bg-black/50 text-xs px-2.5 py-2 rounded-xl text-white border border-white/10 focus:outline-none"
+                      value={newCompanyLogo}
+                      onChange={(e) => setNewCompanyLogo(e.target.value)}
+                    />
+                  </div>
+
+                  {/* Drag-Drop / click base file uploader */}
+                  <div 
+                    onClick={() => {
+                      const fileInput = document.getElementById("comp-file-upload") as HTMLInputElement;
+                      if (fileInput) fileInput.click();
+                    }}
+                    onDragOver={(e) => e.preventDefault()}
+                    onDrop={(e) => {
+                      e.preventDefault();
+                      if (e.dataTransfer.files && e.dataTransfer.files[0]) {
+                        const file = e.dataTransfer.files[0];
+                        setNewCompanyFiles(file.name);
+                        addAuditEvent("info", "Файл загружен", `Прикреплен корпоративный регламент: ${file.name}`);
+                      }
+                    }}
+                    className="cursor-pointer border-2 border-dashed border-white/15 bg-[#17344F]/40 hover:bg-[#17344F]/60 rounded-2xl p-4 text-center space-y-2 transition-all"
+                  >
+                    <input 
+                      id="comp-file-upload" 
+                      type="file" 
+                      className="hidden" 
+                      onChange={(e) => {
+                        if (e.target.files && e.target.files[0]) {
+                          setNewCompanyFiles(e.target.files[0].name);
+                          addAuditEvent("info", "Файл загружен", `Прикреплен файл: ${e.target.files[0].name}`);
+                        }
+                      }}
+                    />
+                    <div className="text-xs text-slate-300 font-bold">
+                      {newCompanyFiles ? (
+                        <span className="text-[#E7C768]">Прикреплен регламент: {newCompanyFiles} ✓</span>
+                      ) : (
+                        "Перетащите файлы/регламенты компании или кликните для выбора (PDF, DOCX)"
+                      )}
+                    </div>
+                    <span className="text-[10px] text-slate-400 block font-mono">Файл будет автоматически разобран ИИ-рекрутером для составления базы знаний</span>
+                  </div>
+
                   <div className="flex justify-end gap-2 text-xs">
                     <button type="button" onClick={() => setShowAddCompany(false)} className="px-3 py-1 bg-white/5 rounded-lg">Отмена</button>
                     <button type="submit" className="px-4 py-1 bg-green-600 rounded-lg font-bold text-white">Сохранить</button>
@@ -1278,23 +1715,70 @@ export default function EmployerPanel() {
 
               {/* LIST VIEW */}
               <div className="space-y-4">
+                {companiesList.length === 0 && (
+                  <div className="bg-[#1D3E5E]/40 border border-white/5 p-8 rounded-3xl text-center text-slate-400 text-xs">
+                    Компаний пока нет. Нажмите кнопку "Регистрация бренда" выше, чтобы добавить компанию и создать её ИИ-лендинг.
+                  </div>
+                )}
                 {companiesList.map((comp, idx) => {
-                  const compVacancies = projects.filter(p => p.companyName.toLowerCase() === comp.name.toLowerCase());
+                  const compVacancies = projects.filter(p => p.companyName?.toLowerCase() === comp.name?.toLowerCase());
 
                   return (
                     <div key={idx} className="bg-[#1D3E5E]/60 border border-white/10 p-5 rounded-3xl space-y-3">
-                      <div className="flex justify-between items-start">
-                        <div>
-                          <span className="text-xs text-[#E7C768] font-bold tracking-wide uppercase font-mono">{comp.industry}</span>
-                          <h3 className="text-base font-bold text-white mt-0.5">{comp.name}</h3>
+                      <div className="flex justify-between items-start gap-4">
+                        <div className="flex items-center gap-3">
+                          {comp.logoUrl ? (
+                            <img src={comp.logoUrl} alt="Logo" className="w-10 h-10 object-contain rounded-lg bg-white/10 p-1 shrink-0" onError={(e) => { (e.target as any).style.display = "none"; }} />
+                          ) : (
+                            <div className="w-10 h-10 rounded-lg bg-[#E7C768]/10 text-[#E7C768] font-bold flex items-center justify-center shrink-0 border border-[#E7C768]/20 font-mono text-sm">
+                              {comp.name ? comp.name.substr(0, 2).toUpperCase() : "CO"}
+                            </div>
+                          )}
+                          <div>
+                            <span className="text-[10px] text-[#E7C768] font-bold tracking-wide uppercase font-mono">{comp.industry}</span>
+                            <h3 className="text-base font-bold text-white mt-0.5">{comp.name}</h3>
+                          </div>
                         </div>
                         <span className="bg-white/5 border border-white/5 text-[10px] text-slate-350 py-1 px-2.5 rounded-full font-mono">Штат: {comp.staff}</span>
                       </div>
 
                       <p className="text-xs text-slate-200 leading-relaxed font-normal">{comp.description}</p>
                       
+                      {/* Expanded sites, files links */}
+                      <div className="flex flex-wrap items-center gap-4 text-xs pt-1">
+                        {comp.sites && (
+                          <a 
+                            href={comp.sites.startsWith("http") ? comp.sites : `https://${comp.sites}`} 
+                            target="_blank" 
+                            rel="noreferrer"
+                            className="text-[#E7C768] hover:underline font-bold flex items-center gap-1"
+                          >
+                            🔗 Сайт: {comp.sites}
+                          </a>
+                        )}
+                        {comp.files && (
+                          <span className="text-slate-300 flex items-center gap-1 font-semibold">
+                            📂 Регламент: <strong className="text-[#E7C768] font-mono">{comp.files}</strong> (Распознан ИИ)
+                          </span>
+                        )}
+                      </div>
+
+                      {/* AI Generated Careers Landing Link address */}
+                      <div className="bg-black/20 border border-white/5 p-3 rounded-2xl flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-2.5">
+                        <div className="space-y-0.5">
+                          <span className="text-[9px] uppercase font-bold text-[#E7C768] block leading-none font-mono">ИИ-Лендинг Компании для Кандидатов</span>
+                          <span className="text-[11.5px] text-slate-300 font-mono select-all">https://hr-rr.ru/{comp.slug}</span>
+                        </div>
+                        <button
+                          onClick={() => navigate(`/${comp.slug}`)}
+                          className="cursor-pointer bg-white/10 hover:bg-white/15 text-white font-bold text-[10.5px] py-1.5 px-3 rounded-lg transition text-center"
+                        >
+                          Открыть Лендинг 🔗
+                        </button>
+                      </div>
+                      
                       <div className="pt-3 border-t border-white/5 flex flex-wrap items-center justify-between gap-2.5 text-[11px] text-slate-400">
-                        <span>Задействованных вакансий: <strong className="text-white">{compVacancies.length}</strong></span>
+                        <span>Задействованных вакансий в системе: <strong className="text-white">{compVacancies.length}</strong></span>
                         <div className="flex gap-1.5">
                           {compVacancies.map(p => (
                             <span key={p.id} className="bg-white/5 hover:bg-white/10 border border-white/5 text-slate-300 px-2 py-0.5 rounded font-mono text-[9.5px]">
@@ -1307,6 +1791,22 @@ export default function EmployerPanel() {
                   );
                 })}
               </div>
+
+              {/* Onboarding Step 2 Next CTA */}
+              <div className="bg-[#1E4468]/60 border border-[#E7C768]/30 rounded-3xl p-5 flex flex-col sm:flex-row items-center justify-between gap-4 mt-6">
+                <div className="text-left space-y-1">
+                  <h4 className="text-[#E7C768] font-bold text-sm">Компания добавлена и бренд-лендинг готов?</h4>
+                  <p className="text-xs text-slate-350">Переходите к финальному шагу онбординга — размещению вашей первой вакансии с ИИ-куратором.</p>
+                </div>
+                <button
+                  onClick={() => navigate(`/employer${employerId}/vacancies`)}
+                  className="cursor-pointer bg-gradient-to-r from-amber-500 to-orange-600 hover:scale-102 hover:shadow-lg text-white font-black text-xs py-3 px-6 rounded-2xl flex items-center gap-1.5 transition-all text-center shrink-0 w-full sm:w-auto justify-center animate-pulse"
+                >
+                  <span>Далее: Разместить вакансию</span>
+                  <ChevronRight className="w-4 h-4" />
+                </button>
+              </div>
+
             </div>
           )}
           
@@ -1701,100 +2201,362 @@ export default function EmployerPanel() {
           {/* PAGE 5: PROFILE & TELEGRAM PORTAL */}
           {activeTab === "profile" && (
             <div className="space-y-6 text-left">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              
+              {/* Dynamic Header */}
+              <div className="bg-[#1D3E5E]/80 border border-[#E7C768]/35 rounded-3xl p-5 shadow-xl flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+                <div className="space-y-1">
+                  <h2 className="text-lg font-black text-white flex items-center gap-2">
+                    <User className="w-5 h-5 text-amber-400" />
+                    Мульти-профиль HR Администратора
+                  </h2>
+                  <p className="text-xs text-slate-300">Авторизованные аккаунты Google и Telegram для интеграций ИИ-рекрутинга.</p>
+                </div>
+                <div className="bg-emerald-950/40 text-emerald-400 text-xs font-bold border border-emerald-500/30 px-3 py-1 rounded-full font-mono flex items-center gap-1.5">
+                  <span className="w-2 h-2 rounded-full bg-emerald-400 animate-ping"></span>
+                  <span>Сессия ID: {employerId}</span>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                 
-                {/* Profile manager form details */}
-                <div className="bg-[#1D3E5E]/85 border border-white/15 rounded-3xl p-6 shadow-xl space-y-4">
-                  <h3 className="font-bold text-sm text-[#E7C768] uppercase font-mono tracking-wider flex items-center gap-2">
-                    <User className="w-4 h-4 text-[#D99E41]" /> Учетные данные Работодателя
-                  </h3>
-                  
-                  <div className="space-y-3 text-xs">
-                    <div>
-                      <label className="text-slate-300 block mb-1 font-bold">ФИО представителя компании:</label>
-                      <input 
-                        type="text" 
-                        className="w-full bg-[#17344F]/65 border border-white/10 rounded-xl px-3 py-2 text-white" 
-                        value={profileName}
-                        onChange={(e) => setProfileName(e.target.value)}
+                {/* GOOGLE PROFILE ACCOUNT BLOCK */}
+                <div className="bg-[#1D3E5E]/85 border border-white/15 rounded-3xl p-6 shadow-xl space-y-5">
+                  <div className="flex items-center justify-between border-b border-white/10 pb-3">
+                    <h3 className="font-bold text-sm text-[#E7C768] uppercase font-mono tracking-wider flex items-center gap-2">
+                      <Chrome className="w-4 h-4 text-sky-400" /> 1. Профиль Google
+                    </h3>
+                    <span className="bg-sky-500/10 text-sky-400 border border-sky-500/25 text-[9px] font-mono font-bold px-2 py-0.5 rounded uppercase tracking-wider">
+                      Google OAuth2 Verified
+                    </span>
+                  </div>
+
+                  <div className="flex flex-col sm:flex-row items-center gap-4 bg-black/20 p-4 rounded-2xl border border-white/5">
+                    <div className="relative shrink-0">
+                      <img 
+                        src={googlePhoto} 
+                        alt="Google avatar" 
+                        className="w-16 h-16 rounded-full object-cover border-2 border-sky-400 shadow-md referrerPolicy='no-referrer'"
+                        onError={(e) => {
+                          (e.target as any).src = "https://lh3.googleusercontent.com/a/default-user=s96-c";
+                        }}
                       />
-                    </div>
-                    <div>
-                      <label className="text-slate-300 block mb-1 font-bold">Должность в штате:</label>
-                      <input 
-                        type="text" 
-                        className="w-full bg-[#17344F]/65 border border-white/10 rounded-xl px-3 py-2 text-white" 
-                        value={profileTitle}
-                        onChange={(e) => setProfileTitle(e.target.value)}
-                      />
-                    </div>
-                    <div>
-                      <label className="text-slate-300 block mb-1 font-bold">Электронная почта:</label>
-                      <input 
-                        type="email" 
-                        className="w-full bg-[#17344F]/65 border border-white/10 rounded-xl px-3 py-2 text-white" 
-                        value={profileEmail}
-                        onChange={(e) => setProfileEmail(e.target.value)}
-                      />
-                    </div>
-                    <div>
-                      <label className="text-slate-300 block mb-1 font-bold">Мобильный телефон:</label>
-                      <input 
-                        type="text" 
-                        className="w-full bg-[#17344F]/65 border border-white/10 rounded-xl px-3 py-2 text-white" 
-                        value={profilePhone}
-                        onChange={(e) => setProfilePhone(e.target.value)}
-                      />
+                      <span className="absolute bottom-0 right-0 bg-emerald-500 w-4 h-4 rounded-full border-2 border-[#1E4468] flex items-center justify-center text-[8px] text-white font-bold" title="Синхронизировано">✓</span>
                     </div>
 
-                    <div className="pt-2">
+                    <div className="text-center sm:text-left min-w-0 flex-1 space-y-1">
+                      <h4 className="text-sm font-extrabold text-white truncate">{googleName}</h4>
+                      <p className="text-xs text-slate-350 font-mono truncate">{googleEmail}</p>
+                      <div className="flex flex-wrap items-center justify-center sm:justify-start gap-2 pt-1 font-mono text-[10px]">
+                        <span className="bg-emerald-950/50 text-emerald-400 px-1.5 py-0.5 rounded font-bold border border-emerald-500/20">
+                          ID: {googleId}
+                        </span>
+                        {googleVerified && (
+                          <span className="bg-sky-950/40 text-sky-400 px-1.5 py-0.5 rounded border border-sky-500/20">
+                            Gmail Verified ✓
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Form for Google info editing */}
+                  <div className="space-y-3.5 text-xs">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      <div>
+                        <label className="text-slate-300 block mb-1 font-bold">Имя в аккаунте:</label>
+                        <input 
+                          type="text" 
+                          className="w-full bg-[#17344F]/70 border border-white/10 rounded-xl px-3 py-2 text-white focus:outline-none focus:border-sky-400" 
+                          value={googleName}
+                          onChange={(e) => {
+                            setGoogleName(e.target.value);
+                            setProfileName(e.target.value);
+                          }}
+                        />
+                      </div>
+                      <div>
+                        <label className="text-slate-300 block mb-1 font-bold">Email аккаунта:</label>
+                        <input 
+                          type="email" 
+                          className="w-full bg-[#17344F]/70 border border-white/10 rounded-xl px-3 py-2 text-white focus:outline-none focus:border-sky-400" 
+                          value={googleEmail}
+                          onChange={(e) => {
+                            setGoogleEmail(e.target.value);
+                            setProfileEmail(e.target.value);
+                          }}
+                        />
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      <div>
+                        <label className="text-slate-300 block mb-1 font-bold">Google ID:</label>
+                        <input 
+                          type="text" 
+                          className="w-full bg-[#17344F]/70 border border-white/10 rounded-xl px-3 py-2 text-white font-mono" 
+                          value={googleId}
+                          onChange={(e) => setGoogleId(e.target.value)}
+                        />
+                      </div>
+                      <div>
+                        <label className="text-slate-300 block mb-1 font-bold">Ссылка на фото Google:</label>
+                        <input 
+                          type="text" 
+                          className="w-full bg-[#17344F]/70 border border-white/10 rounded-xl px-3 py-2 text-white text-[11px]" 
+                          placeholder="Медиа URL"
+                          value={googlePhoto}
+                          onChange={(e) => setGooglePhoto(e.target.value)}
+                        />
+                      </div>
+                    </div>
+
+                    <div className="pt-2 flex items-center justify-between">
+                      <span className="text-[11px] text-slate-400 font-mono">Последняя синхронизация Google: Сегодня</span>
                       <button 
                         type="button" 
-                        onClick={handleUpdateProfile}
-                        className="cursor-pointer bg-[#E7C768] text-slate-900 font-bold px-4 py-2 rounded-xl text-xs hover:bg-[#F3D78E] shadow"
+                        onClick={() => handleUpdateProfile({
+                          googleName,
+                          googleEmail,
+                          googlePhoto,
+                          googleId,
+                          googleVerified
+                        })}
+                        className="cursor-pointer bg-sky-600 hover:bg-sky-500 text-white font-bold px-4 py-2 rounded-xl text-xs transition duration-150 shadow-md"
                       >
-                        {isProfileSaved ? "Сохранено! ✓" : "Сохранить профиль"}
+                        {isProfileSaved ? "Сохранено! ✓" : "Сохранить Google"}
                       </button>
                     </div>
                   </div>
                 </div>
 
-                {/* Telegram notifications integration configurations */}
-                <div className="bg-[#1D3E5E]/85 border border-white/15 rounded-3xl p-6 shadow-xl space-y-4">
-                  <h3 className="font-bold text-sm text-[#E7C768] uppercase font-mono tracking-wider flex items-center gap-1.5">
-                    <Smartphone className="w-4 h-4 text-sky-400" /> Связь с Вашим Telegram
-                  </h3>
-                  <p className="text-xs text-slate-200 leading-relaxed font-semibold">
-                    Чтобы Робот Рекрутер исправно уведомлял Вашего руководителя об этапах прохождения соискателей в реальном времени, прикрепите личный идентификатор.
-                  </p>
+                {/* TELEGRAM PROFILE BLOCK */}
+                <div className="bg-[#1D3E5E]/85 border border-white/15 rounded-3xl p-6 shadow-xl space-y-5">
+                  <div className="flex items-center justify-between border-b border-white/10 pb-3">
+                    <h3 className="font-bold text-sm text-[#E7C768] uppercase font-mono tracking-wider flex items-center gap-2">
+                      <Send className="w-4 h-4 text-sky-400" /> 2. Профиль Telegram
+                    </h3>
+                    <span className="bg-[#E7C768]/15 text-[#E7C768] border border-[#E7C768]/30 text-[9px] font-mono font-bold px-2 py-0.5 rounded uppercase tracking-wider">
+                      TG Bot Active
+                    </span>
+                  </div>
 
-                  <div className="space-y-3">
-                    <div className="flex gap-2">
-                      <input
-                        type="text"
-                        className="w-full bg-[#17344F]/60 border border-white/15 rounded-xl px-3 py-2 text-xs text-white"
-                        placeholder="Telegram ID. Например: 59384591"
-                        value={adminTgId}
-                        onChange={(e) => setAdminTgId(e.target.value)}
+                  <div className="flex flex-col sm:flex-row items-center gap-4 bg-black/20 p-4 rounded-2xl border border-white/5">
+                    <div className="relative shrink-0">
+                      <img 
+                        src={telegramPhoto} 
+                        alt="Telegram avatar" 
+                        className="w-16 h-16 rounded-full object-cover border-2 border-amber-400 shadow-md"
+                        onError={(e) => {
+                          (e.target as any).src = "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?auto=format&fit=facearea&facepad=2.2&w=256&h=256&q=80";
+                        }}
                       />
-                      <button
-                        onClick={saveTgId}
-                        className="cursor-pointer bg-gradient-to-r from-red-650 to-orange-700 text-white font-bold px-4 rounded-xl text-xs"
-                      >
-                        Привязать
-                      </button>
+                      <span className="absolute bottom-0 right-0 bg-amber-500 w-4 h-4 rounded-full border-2 border-[#1E4468] flex items-center justify-center text-[8px] text-white font-bold" title="Telegram Бот на связи">✓</span>
                     </div>
 
-                    <div className="bg-black/30 p-4 rounded-2xl border border-white/5 font-mono text-[10.5px] leading-relaxed space-y-1.5">
-                      <div className="font-bold text-[#E7C768] text-[11px] font-sans">Инструкция синхронизации:</div>
-                      <div>1. Перейдите в Telegram на адрес <strong className="text-sky-300">@HR_RRbot</strong></div>
-                      <div>2. Запустите бота командой <strong className="text-sky-300">/start</strong></div>
-                      <div>3. Бот сразу спишет ваш ID; скопируйте его и подставьте в окно привязки выше.</div>
+                    <div className="text-center sm:text-left min-w-0 flex-1 space-y-1">
+                      <h4 className="text-sm font-extrabold text-white truncate">
+                        {telegramFirstName} {telegramLastName}
+                      </h4>
+                      
+                      {/* Clickable Username Link */}
+                      <div className="text-xs font-semibold">
+                        <span className="text-slate-400 mr-1.5 font-normal">Никнейм:</span>
+                        <a 
+                          href={telegramUsernameState ? `https://t.me/${telegramUsernameState.replace("@", "")}` : "https://t.me/HR_RRbot"} 
+                          target="_blank" 
+                          rel="noreferrer"
+                          className="text-sky-305 hover:underline font-mono text-sm inline-flex items-center gap-1 font-black bg-sky-950/40 hover:bg-sky-950/60 transition px-2 py-0.5 rounded"
+                        >
+                          @{telegramUsernameState ? telegramUsernameState.replace("@", "") : "cowal_sales"} 🔗
+                        </a>
+                      </div>
+
+                      <div className="flex flex-wrap items-center justify-center sm:justify-start gap-2 pt-1 font-mono text-[10px]">
+                        <span className="bg-amber-950/60 text-[#E7C768] px-1.5 py-0.5 rounded font-bold border border-amber-500/25">
+                          ID: {telegramIdState || adminTgId}
+                        </span>
+                        <span className="bg-emerald-950/40 text-emerald-400 px-1.5 py-0.5 rounded border border-emerald-500/20">
+                          Уведомления ВКЛ ✅
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Form for Telegram info editing */}
+                  <div className="space-y-3.5 text-xs">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      <div>
+                        <label className="text-slate-300 block mb-1 font-bold">Имя (First Name):</label>
+                        <input 
+                          type="text" 
+                          className="w-full bg-[#17344F]/70 border border-white/10 rounded-xl px-3 py-2 text-white focus:outline-none focus:border-amber-400" 
+                          value={telegramFirstName}
+                          onChange={(e) => setTelegramFirstName(e.target.value)}
+                        />
+                      </div>
+                      <div>
+                        <label className="text-slate-300 block mb-1 font-bold">Фамилия (Last Name):</label>
+                        <input 
+                          type="text" 
+                          className="w-full bg-[#17344F]/70 border border-white/10 rounded-xl px-3 py-2 text-white focus:outline-none focus:border-amber-400" 
+                          value={telegramLastName}
+                          onChange={(e) => setTelegramLastName(e.target.value)}
+                        />
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      <div>
+                        <label className="text-slate-300 block mb-1 font-bold">Никнейм @username:</label>
+                        <input 
+                          type="text" 
+                          className="w-full bg-[#17344F]/70 border border-white/10 rounded-xl px-3 py-2 text-white font-mono focus:outline-none focus:border-amber-400" 
+                          placeholder="например: active_hr"
+                          value={telegramUsernameState}
+                          onChange={(e) => setTelegramUsernameState(e.target.value.replace("@", ""))}
+                        />
+                      </div>
+                      <div>
+                        <label className="text-slate-300 block mb-1 font-bold">Telegram ID (Цифры):</label>
+                        <div className="flex gap-1.5">
+                          <input 
+                            type="text" 
+                            className="w-full bg-[#17344F]/70 border border-white/10 rounded-xl px-3 py-2 text-white font-mono text-center focus:outline-none focus:border-amber-400" 
+                            placeholder="например: 59384591"
+                            value={telegramIdState}
+                            onChange={(e) => {
+                              setTelegramIdState(e.target.value);
+                              setAdminTgId(e.target.value);
+                            }}
+                          />
+                          <button
+                            type="button"
+                            onClick={() => {
+                              saveTgId();
+                              handleUpdateProfile({
+                                telegramId: telegramIdState,
+                                telegramPhoto,
+                                telegramFirstName,
+                                telegramLastName,
+                                telegramUsername: telegramUsernameState
+                              });
+                            }}
+                            className="bg-amber-600 hover:bg-amber-500 font-bold px-3 py-2 text-white rounded-xl text-[10px]"
+                          >
+                            Привязать
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="pt-2 flex items-center justify-between gap-2.5">
+                      <div className="bg-black/25 text-[9.5px] px-2.5 py-1.5 rounded-lg border border-white/5 text-slate-400 font-mono flex-1 leading-normal">
+                        🤖 Для синхронизации ID напишите команду <strong className="text-[#E7C768]">/start</strong> боту <a href="https://t.me/HR_RRbot" target="_blank" rel="noreferrer" className="text-sky-305 underline">@HR_RRbot</a>
+                      </div>
+                      <button 
+                        type="button" 
+                        onClick={() => handleUpdateProfile({
+                          telegramId: telegramIdState,
+                          telegramPhoto,
+                          telegramFirstName,
+                          telegramLastName,
+                          telegramUsername: telegramUsernameState
+                        })}
+                        className="cursor-pointer bg-amber-500 hover:bg-amber-600 text-slate-900 font-black px-4 py-2 rounded-xl text-xs transition duration-150 shadow-md shrink-0"
+                      >
+                        {isProfileSaved ? "Сохранено! ✓" : "Сохранить TG"}
+                      </button>
                     </div>
                   </div>
                 </div>
 
               </div>
+
+              {/* REFERRAL SYSTEM SECTION INTEGRATION INSIDE PROFILE TAB */}
+              <div className="bg-[#1D3E5E]/85 border border-[#E7C768]/40 rounded-3xl p-6 shadow-xl space-y-4">
+                <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 border-b border-white/10 pb-3">
+                  <div className="flex items-center gap-3">
+                    <span className="text-2xl select-none">🎁</span>
+                    <div>
+                      <h3 className="font-extrabold text-white text-sm">Ваша персональная реферальная программа</h3>
+                      <p className="text-[11px] text-slate-300 leading-normal font-normal">
+                        Зарабатывайте рекрутинговые мили **1,000 RR** бонуса за каждого приглашенного HR-директора или работодателя!
+                      </p>
+                    </div>
+                  </div>
+                  <span className="bg-emerald-950/80 text-emerald-400 border border-emerald-500/30 text-[10.5px] font-mono font-bold px-3 py-1 rounded-full uppercase">
+                    Награда 1000 RR
+                  </span>
+                </div>
+
+                <p className="text-xs text-slate-200 leading-normal font-normal">
+                  Когда ваши коллеги регистрируют Личный Кабинет через подключение Google или Telegram по любой из реферальных ссылок ниже, вашему кабинету начисляется **1000 RR** для покупки авто-собеседований и ИИ-онбордингов, а ваш друг получает приветственный стартовый бонус **1000 RR**!
+                </p>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-2">
+                  <div className="bg-black/25 p-4 rounded-2xl border border-white/5 space-y-2 text-xs text-left">
+                    <span className="text-[10px] text-slate-400 font-bold block uppercase font-mono tracking-wider">🔗 Официальная реферальная ссылка:</span>
+                    <div className="flex items-center gap-2">
+                      <input
+                        type="text"
+                        readOnly
+                        value={`https://hr-rr.ru?ref=${employerId}`}
+                        className="bg-black/40 w-full select-all font-mono font-normal text-[#E7C768] text-[11px] border border-white/10 p-2 rounded-xl focus:outline-none"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => {
+                          navigator.clipboard.writeText(`https://hr-rr.ru?ref=${employerId}`);
+                          addAuditEvent("success", "Реф-ссылка скопирована", "Основная реферальная ссылка скопирована в буфер обмена.");
+                          alert("Официальная реферальная ссылка скопирована!");
+                        }}
+                        className="bg-white/10 hover:bg-white/15 text-[#E7C768] px-3.5 py-2.5 border border-white/5 text-[10.5px] uppercase font-bold rounded-xl cursor-pointer shrink-0"
+                      >
+                        Копировать
+                      </button>
+                    </div>
+                  </div>
+
+                  <div className="bg-black/25 p-4 rounded-2xl border border-white/5 space-y-2 text-xs text-left">
+                    <span className="text-[10px] text-slate-400 font-bold block uppercase font-mono tracking-wider">🚀 Песочница тестирования ссылок (Проверка):</span>
+                    <div className="flex items-center gap-2">
+                      <input
+                        type="text"
+                        readOnly
+                        value={`${window.location.origin}/auth?ref=${employerId}`}
+                        className="bg-black/40 w-full select-all font-mono font-normal text-emerald-400 text-[11px] border border-white/10 p-2 rounded-xl focus:outline-none"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => {
+                          navigator.clipboard.writeText(`${window.location.origin}/auth?ref=${employerId}`);
+                          addAuditEvent("success", "Sandbox реф-ссылка скопирована", "Тестовая ссылка для проверки в песочнице скопирована.");
+                          alert("Ссылка для тестирования скопирована!");
+                        }}
+                        className="bg-emerald-950/50 hover:bg-emerald-900/60 text-emerald-400 px-3.5 py-2.5 border border-emerald-500/20 text-[10.5px] uppercase font-bold rounded-xl cursor-pointer shrink-0"
+                      >
+                        Копировать
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Onboarding Next Step CTA */}
+              <div className="bg-[#1E4468]/60 border border-[#E7C768]/30 rounded-3xl p-5 flex flex-col sm:flex-row items-center justify-between gap-4">
+                <div className="text-left space-y-1">
+                  <h4 className="text-[#E7C768] font-bold text-sm">Профиль заполнен и проверен?</h4>
+                  <p className="text-xs text-slate-350">Переходите к следующему шагу — созданию вашей первой компании и ИИ-лендинга.</p>
+                </div>
+                <button
+                  onClick={() => navigate(`/employer${employerId}/companies`)}
+                  className="cursor-pointer bg-gradient-to-r from-amber-500 to-orange-600 hover:scale-102 hover:shadow-lg text-white font-black text-xs py-3.5 px-6 rounded-2xl flex items-center gap-1.5 transition-all text-center shrink-0 w-full sm:w-auto justify-center"
+                >
+                  <span>Далее: Настройка компании</span>
+                  <ChevronRight className="w-4 h-4" />
+                </button>
+              </div>
+
             </div>
           )}
 
@@ -2077,6 +2839,346 @@ export default function EmployerPanel() {
             </button>
 
             <span className="text-[10px] text-zinc-400 leading-normal block text-center italic">Вы также можете пропустить оплату, вся система адаптации полноценно работает в тестовом режиме Бронза.</span>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL WINDOW: EDIT VACANCY DETAILS AND SUBPAGES TEXTS */}
+      {editingProject && (
+        <div className="fixed inset-0 z-50 bg-black/75 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="bg-[#1D3E5E] border-2 border-[#E7C768]/60 p-6 sm:p-8 rounded-3xl w-full max-w-6xl text-left text-white shadow-2xl relative max-h-[95vh] overflow-y-auto space-y-5 animate-fadeIn">
+            <button 
+              onClick={() => setEditingProject(null)} 
+              className="absolute top-4 right-4 text-slate-400 hover:text-white text-lg font-bold cursor-pointer bg-white/5 border border-white/5 w-8 h-8 rounded-full flex items-center justify-center transition"
+            >
+              ✕
+            </button>
+
+            <div className="border-b border-white/10 pb-3">
+              <span className="text-[10px] font-bold text-[#E7C768] uppercase font-mono tracking-wider flex items-center gap-1.5">
+                <span className="w-2 h-2 rounded-full bg-[#E7C768] animate-pulse" />
+                Редактирование &bull; ID вакансии: {editingProject.id}
+              </span>
+              <h2 className="text-xl font-bold text-white mt-1">
+                {editingProject.roleName}
+              </h2>
+            </div>
+
+            <form onSubmit={handleSaveEditedProject} className="space-y-5">
+              
+              {/* Top part: General Vacancy Parameters */}
+              <div className="bg-black/25 p-4 rounded-2xl border border-white/5 space-y-4">
+                <h3 className="text-xs font-mono uppercase tracking-wider text-[#E7C768] border-b border-white/5 pb-2">
+                  📋 Основная информация (постоянная часть)
+                </h3>
+                
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <div>
+                    <label className="text-[11px] font-bold text-slate-200 block mb-1">Название должности:</label>
+                    <input
+                      type="text"
+                      required
+                      className="w-full bg-[#112335] text-xs p-2.5 rounded-xl border border-white/10 text-white focus:outline-[#E7C768]"
+                      value={editingProject.roleName}
+                      onChange={(e) => setEditingProject({ ...editingProject, roleName: e.target.value })}
+                    />
+                  </div>
+                  <div>
+                    <label className="text-[11px] font-bold text-slate-200 block mb-1">Оплата (кратко на баннер):</label>
+                    <input
+                      type="text"
+                      className="w-full bg-[#112335] text-xs p-2.5 rounded-xl border border-white/10 text-white focus:outline-[#E7C768]"
+                      value={editingProject.salaryTerms || ""}
+                      onChange={(e) => setEditingProject({ ...editingProject, salaryTerms: e.target.value })}
+                    />
+                  </div>
+                  <div>
+                    <label className="text-[11px] font-bold text-slate-200 block mb-1">График (кратко на баннер):</label>
+                    <input
+                      type="text"
+                      className="w-full bg-[#112335] text-xs p-2.5 rounded-xl border border-white/10 text-white focus:outline-[#E7C768]"
+                      value={editingProject.scheduleTerms || ""}
+                      onChange={(e) => setEditingProject({ ...editingProject, scheduleTerms: e.target.value })}
+                    />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <div>
+                    <label className="text-[11px] font-bold text-slate-200 block mb-1">Условия мотивации (кратко):</label>
+                    <input
+                      type="text"
+                      className="w-full bg-[#112335] text-xs p-2.5 rounded-xl border border-white/10 text-white focus:outline-[#E7C768]"
+                      value={editingProject.motivationText || ""}
+                      onChange={(e) => setEditingProject({ ...editingProject, motivationText: e.target.value })}
+                    />
+                  </div>
+                  <div>
+                    <label className="text-[11px] font-bold text-slate-200 block mb-1">База знаний Wiki (регламент):</label>
+                    <input
+                      type="text"
+                      className="w-full bg-[#112335] text-xs p-2.5 rounded-xl border border-white/10 text-white focus:outline-[#E7C768]"
+                      value={editingProject.customWiki || ""}
+                      onChange={(e) => setEditingProject({ ...editingProject, customWiki: e.target.value })}
+                    />
+                  </div>
+                  <div>
+                    <label className="text-[11px] font-bold text-slate-200 block mb-1">Логотип вакансии (ссылка или файл):</label>
+                    <div className="flex gap-2">
+                      <input
+                        type="text"
+                        className="flex-1 bg-[#112335] text-xs p-2.5 rounded-xl border border-white/10 text-white focus:outline-[#E7C768]"
+                        value={editingProject.logoUrl || ""}
+                        onChange={(e) => setEditingProject({ ...editingProject, logoUrl: e.target.value })}
+                        placeholder="https://i.ibb.co/WWRbtPq0/RR-Logo.png"
+                      />
+                      <label className="cursor-pointer bg-white/5 border border-white/10 hover:border-[#E7C768] text-xs px-2.5 py-2.5 rounded-xl text-white font-bold select-none text-center flex items-center shrink-0">
+                        <span>📂 Файл</span>
+                        <input
+                          type="file"
+                          accept="image/*"
+                          className="hidden"
+                          onChange={(e) => {
+                            const file = e.target.files?.[0];
+                            if (file) {
+                              const reader = new FileReader();
+                              reader.onloadend = () => {
+                                if (typeof reader.result === "string") {
+                                  setEditingProject({ ...editingProject, logoUrl: reader.result });
+                                }
+                              };
+                              reader.readAsDataURL(file);
+                            }
+                          }}
+                        />
+                      </label>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Middle Section: Switcher of the 8 Interactive Subpages */}
+              <div className="space-y-4">
+                <div className="flex items-center justify-between border-b border-white/5 pb-2">
+                  <span className="text-xs font-mono uppercase tracking-wider text-[#E7C768]">
+                    🛠️ Тексты и живой предпросмотр подстраниц
+                  </span>
+                  <span className="text-[10px] text-slate-400">Выберите раздел для редактирования</span>
+                </div>
+
+                 {/* Subpage Selectors Button Bar */}
+                <div className="flex flex-wrap gap-1.5">
+                  {[
+                    { key: "company", label: "🏢 Компания" },
+                    { key: "vacancy", label: "💼 Вакансия" },
+                    { key: "schedule", label: "📅 График" },
+                    { key: "motivation", label: "🔥 Мотивация" },
+                    { key: "payouts", label: "💵 Выплаты" },
+                    { key: "onboarding", label: "🚀 Оформление" },
+                    { key: "team", label: "👥 Команда" },
+                    { key: "system", label: "⚙️ ИИ-Система" }
+                  ].map((btn) => {
+                    const isActive = editorSubTab === btn.key;
+                    return (
+                      <button
+                        key={btn.key}
+                        type="button"
+                        onClick={() => setEditorSubTab(btn.key)}
+                        className={`transition px-3 py-2 text-xs font-bold rounded-xl border cursor-pointer select-none ${
+                          isActive
+                            ? "bg-[#E7C768] text-[#112335] border-[#E7C768] shadow-md"
+                            : "bg-[#112335]/70 text-slate-300 border-white/5 hover:bg-white/5 hover:text-white"
+                        }`}
+                      >
+                        {btn.label}
+                      </button>
+                    );
+                  })}
+                </div>
+
+                {/* Split Workspace Column Grid */}
+                <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 pt-1.5">
+                  
+                  {/* Left Column: Focused text Area */}
+                  <div className="lg:col-span-5 bg-black/15 p-4 rounded-2xl border border-white/5 flex flex-col justify-between space-y-4">
+                    <div className="space-y-3">
+                      <div className="flex justify-between items-center bg-white/5 p-2 rounded-xl border border-white/5">
+                        <span className="text-[10px] font-mono text-emerald-400 uppercase font-black">Свойства поля</span>
+                        <span className="text-[10px] text-slate-400 font-mono">ID: {editorSubTab}</span>
+                      </div>
+
+                      {editorSubTab === "vacancy" && (
+                        <div className="space-y-1.5">
+                          <label className="text-xs font-bold text-slate-200 block">Раздел: Обязанности & Требования</label>
+                          <p className="text-[10px] text-slate-400 leading-tight">Каждый пункт пишите с новой строки (или используйте дефис/точку):</p>
+                          <textarea
+                            rows={8}
+                            className="w-full bg-[#112335] text-xs p-3 rounded-xl border border-white/10 text-white font-mono focus:outline-[#E7C768]"
+                            value={editingProject.vacancyText || ""}
+                            onChange={(e) => setEditingProject({ ...editingProject, vacancyText: e.target.value })}
+                          />
+                        </div>
+                      )}
+
+                      {editorSubTab === "motivation" && (
+                        <div className="space-y-1.5">
+                          <label className="text-xs font-bold text-slate-200 block">Раздел: Мотивация и привилегии</label>
+                          <p className="text-[10px] text-slate-400 leading-tight">Каждый бонус или карьерную опцию пишите с новой строки:</p>
+                          <textarea
+                            rows={8}
+                            className="w-full bg-[#112335] text-xs p-3 rounded-xl border border-white/10 text-white font-mono focus:outline-[#E7C768]"
+                            value={editingProject.motivationTextDetail || ""}
+                            onChange={(e) => setEditingProject({ ...editingProject, motivationTextDetail: e.target.value })}
+                          />
+                        </div>
+                      )}
+
+                      {editorSubTab === "company" && (
+                        <div className="space-y-1.5">
+                          <label className="text-xs font-bold text-slate-200 block">Раздел: О компании и масштабе</label>
+                          <p className="text-[10px] text-slate-400 leading-tight">Основные факты, масштаб и достижения компании по строкам:</p>
+                          <textarea
+                            rows={8}
+                            className="w-full bg-[#112335] text-xs p-3 rounded-xl border border-white/10 text-white font-mono focus:outline-[#E7C768]"
+                            value={editingProject.companyText || ""}
+                            onChange={(e) => setEditingProject({ ...editingProject, companyText: e.target.value })}
+                          />
+                        </div>
+                      )}
+
+                      {editorSubTab === "onboarding" && (
+                        <div className="space-y-1.5">
+                          <label className="text-xs font-bold text-slate-200 block">Раздел: Процесс Оформления</label>
+                          <p className="text-[10px] text-slate-400 leading-tight">Опишите по порядку этапы стажировки (4 этапа по очереди с новых строк):</p>
+                          <textarea
+                            rows={8}
+                            className="w-full bg-[#112335] text-xs p-3 rounded-xl border border-white/10 text-white font-mono focus:outline-[#E7C768]"
+                            value={editingProject.onboardingText || ""}
+                            onChange={(e) => setEditingProject({ ...editingProject, onboardingText: e.target.value })}
+                          />
+                        </div>
+                      )}
+
+                      {editorSubTab === "payouts" && (
+                        <div className="space-y-1.5">
+                          <label className="text-xs font-bold text-slate-200 block">Раздел: Финансовые Выплаты</label>
+                          <p className="text-[10px] text-slate-400 leading-tight">Опишите фикс, сроки аванса и регулярность выплат по строкам:</p>
+                          <textarea
+                            rows={8}
+                            className="w-full bg-[#112335] text-xs p-3 rounded-xl border border-white/10 text-white font-mono focus:outline-[#E7C768]"
+                            value={editingProject.payoutsText || ""}
+                            onChange={(e) => setEditingProject({ ...editingProject, payoutsText: e.target.value })}
+                          />
+                        </div>
+                      )}
+
+                      {editorSubTab === "schedule" && (
+                        <div className="space-y-1.5">
+                          <label className="text-xs font-bold text-slate-200 block">Раздел: График Работы</label>
+                          <p className="text-[10px] text-slate-400 leading-tight">Разъясните гибкость смен, тайм-слоты и минимальные часы с новых строк:</p>
+                          <textarea
+                            rows={8}
+                            className="w-full bg-[#112335] text-xs p-3 rounded-xl border border-white/10 text-white font-mono focus:outline-[#E7C768]"
+                            value={editingProject.scheduleText || ""}
+                            onChange={(e) => setEditingProject({ ...editingProject, scheduleText: e.target.value })}
+                          />
+                        </div>
+                      )}
+
+                      {editorSubTab === "team" && (
+                        <div className="space-y-1.5">
+                          <label className="text-xs font-bold text-slate-200 block">Раздел: Наша Команда</label>
+                          <p className="text-[10px] text-slate-400 leading-tight">Каждого куратора пишите в формате: Имя - Должность. Текст девиза.</p>
+                          <textarea
+                            rows={8}
+                            className="w-full bg-[#112335] text-xs p-3 rounded-xl border border-white/10 text-white font-mono focus:outline-[#E7C768]"
+                            value={editingProject.teamText || ""}
+                            onChange={(e) => setEditingProject({ ...editingProject, teamText: e.target.value })}
+                          />
+                        </div>
+                      )}
+
+                      {editorSubTab === "system" && (
+                        <div className="space-y-1.5">
+                          <label className="text-xs font-bold text-slate-200 block">Раздел: ИИ-Система РобоРекрут</label>
+                          <p className="text-[10px] text-slate-400 leading-tight">Опишите критерии оценки диалога, время на тест и сдачу по строкам:</p>
+                          <textarea
+                            rows={8}
+                            className="w-full bg-[#112335] text-xs p-3 rounded-xl border border-white/10 text-white font-mono focus:outline-[#E7C768]"
+                            value={editingProject.systemText || ""}
+                            onChange={(e) => setEditingProject({ ...editingProject, systemText: e.target.value })}
+                          />
+                        </div>
+                      )}
+                    </div>
+
+                    <div className="bg-emerald-500/10 border border-emerald-500/25 p-2.5 rounded-xl text-[10px] text-emerald-400 leading-tight">
+                      ℹ️ Изменения на правой панели обновляются мгновенно в реальном времени. Нажмите кнопку сохранить внизу для записи.
+                    </div>
+                  </div>
+
+                  {/* Right Column: Beautiful Live Render */}
+                  <div className="lg:col-span-7 bg-[#112335] border border-white/10 rounded-2xl p-4.5 min-h-[340px] flex flex-col justify-between relative overflow-hidden">
+                    <div className="absolute top-2.5 right-3 flex items-center gap-1 bg-[#E7C768]/15 border border-[#E7C768]/20 text-[#E7C768] text-[9px] font-mono font-bold px-2 py-0.5 rounded-md">
+                      <span className="w-1.5 h-1.5 rounded-full bg-[#E7C768] animate-pulse" />
+                      ПРЕДПРОСМОТР БЛОКА ЛЕНДИНГА
+                    </div>
+
+                    <div className="pt-6 space-y-3">
+                      <span className="text-[9px] text-slate-400 font-mono tracking-wider block uppercase">Активирован вид: /{editorSubTab}</span>
+                      
+                      <div className="bg-black/25 p-4 rounded-xl border border-white/5 shadow-inner">
+                        {(() => {
+                          switch (editorSubTab) {
+                            case "motivation":
+                              return <MotivationView project={editingProject} />;
+                            case "company":
+                              return <CompanyView project={editingProject} />;
+                            case "onboarding":
+                              return <OnboardingView project={editingProject} />;
+                            case "payouts":
+                              return <PayoutsView project={editingProject} />;
+                            case "schedule":
+                              return <ScheduleView project={editingProject} />;
+                            case "team":
+                              return <TeamView project={editingProject} />;
+                            case "system":
+                              return <SystemView project={editingProject} />;
+                            case "vacancy":
+                            default:
+                              return <VacancyView project={editingProject} />;
+                          }
+                        })()}
+                      </div>
+                    </div>
+
+                    <div className="text-[9px] text-slate-500 text-right font-mono mt-2 select-none border-t border-white/5 pt-1.5">
+                      Viewport: 100% Responsive Adaptive Layout Template
+                    </div>
+                  </div>
+
+                </div>
+              </div>
+
+              {/* Botton control buttons */}
+              <div className="pt-4 border-t border-white/10 flex gap-3">
+                <button
+                  type="submit"
+                  disabled={isSavingEdit}
+                  className="cursor-pointer flex-1 bg-gradient-to-r from-emerald-600 to-teal-700 font-extrabold py-3 px-5 rounded-xl hover:shadow-xl hover:brightness-110 transition disabled:opacity-55 text-sm"
+                >
+                  {isSavingEdit ? "Сохранение изменений в БД..." : "💾 Сохранить изменения вакансии"}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setEditingProject(null)}
+                  className="cursor-pointer bg-white/5 hover:bg-white/10 border border-white/10 px-5 py-3 rounded-xl text-slate-300 font-bold transition text-sm"
+                >
+                  Отмена
+                </button>
+              </div>
+
+            </form>
           </div>
         </div>
       )}

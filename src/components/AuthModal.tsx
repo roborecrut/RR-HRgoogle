@@ -37,8 +37,8 @@ export default function AuthModal({ isOpen, onClose }: AuthModalProps) {
     setIsLoading(true);
     setAuthVia(method);
 
-    // Generate random valid employer data automatically to guarantee a clean state
-    const randId = Math.floor(1000 + Math.random() * 9000);
+    // Generate random valid employer data automatically with 6-digit ID to guarantee a clean state
+    const randId = Math.floor(100000 + Math.random() * 900000);
     const mockName = `Работодатель #${randId}`;
     const mockEmail = `employer_${randId}@rr-platform.ru`;
     const mockTg = `employer_tg_${randId}`;
@@ -46,6 +46,7 @@ export default function AuthModal({ isOpen, onClose }: AuthModalProps) {
     try {
       // Registering as Employer
       const payload = {
+        id: String(randId),
         name: mockName,
         email: mockEmail,
         telegramUsername: mockTg,
@@ -74,7 +75,7 @@ export default function AuthModal({ isOpen, onClose }: AuthModalProps) {
         localStorage.setItem("employer_role", "employer");
         
         onClose();
-        navigate("/employer/crm");
+        navigate(`/employer${employer.id}/profile`);
       }, 1200);
     } catch (err: any) {
       console.error(err);

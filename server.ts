@@ -18,6 +18,10 @@ const db = {
   telegramLog: [] as any[],
   payments: [] as any[],
   employers: [] as any[],
+  companies: [
+    { name: "ООО РобоРекрут инжиниринг", slug: "ooo-roborekrut-inzhiniring", industry: "IT и ИИ продукты", staff: "45 человек", description: "Разрабатываем высокопроизводительнее решения по автоматизации собеседований со встроенным Gemini API.", activeVacancies: 1, employerId: "emp-demo", sites: "https://roborecruiter.ru" },
+    { name: "PromoAI", slug: "promoai", industry: "Реклама и маркетинг", staff: "18 человек", description: "Интеллектуальное агентство контекстной рекламы с автогенерацией лидов.", activeVacancies: 1, employerId: "emp-demo", sites: "https://promoai.ru" }
+  ] as any[],
 };
 
 // Seed default employer
@@ -70,7 +74,9 @@ db.payments.push({
 // Seed default data for sales manager and product specialist so that the app opens with some active CRM information
 db.projects.push({
   id: "sales-prod-1",
-  companyName: "ООО 'УльтраДизайн'",
+  companyName: "ООО РобоРекрут инжиниринг",
+  companySlug: "ooo-roborekrut-inzhiniring",
+  employerId: "emp-demo",
   roleName: "Менеджер по продажам",
   salaryTerms: "80,000 - 150,000 руб. (оклад + %)",
   scheduleTerms: "5/2, Гибрид (Москва / Удаленно)",
@@ -84,7 +90,16 @@ db.projects.push({
     "Клиент говорит: 'У вас слишком дорого, конкуренты предлагают дешевле'. Каковы ваши действия?",
     "Договоритесь о встрече с занятым руководителем отдела закупок."
   ],
-  customWiki: "УльтраДизайн поставляет ИИ-инструменты для маркетологов. Главный продукт - конструктор 'PromoAI'."
+  customWiki: "РобоРекрут поставляет ИИ-инструменты для маркетологов и рекрутеров. Главный продукт - ИИ Робот Рекрутер.",
+  vacancyText: "Мы ищем сильного специалиста на должность Менеджер по продажам. Эта позиция предполагает работу в нашей передовой ИИ-платформе.\nВы будете вести сделки, коммуницировать с целевой аудиторией и помогать развивать наши высокотехнологичные продукты.\n\nТребования:\n- Грамотная речь, умение убеждать\n- Настойчивость и проактивный подход",
+  motivationTextDetail: "В нашей команде вы будете расти быстрее, чем где-либо еще. Наша компания осуществляет прозрачные грейдовые выплаты. Оклад стабильный, а проценты от продаж выплачиваются безукоризненно.\n\nКаждый месяц лучший менеджер по продажам получает дополнительную премию и возможность кураторства новых сотрудников!",
+  companyText: "ООО РобоРекрут инжиниринг — признанный флагман в своей технологической сфере. Мы гордимся тем, что строим полностью прозрачные и понятные рабочие процессы.\nВнедрение нашего ИИ Робота Рекрутера помогает нам мгновенно обучать новых людей, адаптируя их прямо под внутреннюю специфику наших регламентов и Wiki-баз.",
+  onboardingText: "Процесс выхода на работу максимально автоматизирован. Сразу после успешного ИИ-собеседования вы получаете доступ к учебным материалам и лекциям. Мы заключаем официальный трудовой договор в первый рабочий день. Договор может быть оформлен по ТК РФ, ГПХ или как Самозанятый.",
+  payoutsText: "Стабильный оклад + Процент от закрытых сделок (KPI). Оплата два раза в месяц (аванс и расчет) на любую карту банка РФ без задержек. Предусматриваем приветственный бонус в первый месяц!",
+  scheduleText: "Удобный график 5/2 (суббота и воскресенье - выходные). Гибкое начало рабочего дня: вы можете начинать с 8:00, 9:00 или 10:00 утра по Московскому времени. Возможна также полная удаленная работа.",
+  teamText: "Вы будете работать в дружном молодом коллективе отдела продаж. За вами закрепляется персональный опытный наставник, который готов ответить на любые вопросы по интеграциям или скриптам в первые 2 недели работы.",
+  systemText: "Все процессы регламентированы! Вам доступна внутренняя Wiki-база знаний сразу в личном кабинете. Используйте ИИ-помощника для автоматической подготовки ответов на сложные возражения клиентов.",
+  logoUrl: "https://i.ibb.co/WWRbtPq0/RR-Logo.png"
 });
 
 db.candidates.push({
@@ -213,7 +228,7 @@ async function startServer() {
 
   // Employer APIs: Register/login, retrieve profile, topup, and purchase
   app.post("/api/employers", (req, res) => {
-    const { name, email, telegramUsername, registeredVia, refBy } = req.body;
+    const { id, name, email, telegramUsername, registeredVia, refBy } = req.body;
     
     // Check if employer already exists with this email
     let emp = db.employers.find(e => e.email.toLowerCase() === email.toLowerCase());
@@ -222,7 +237,7 @@ async function startServer() {
       return res.json(emp);
     }
     
-    const empId = "emp-" + Math.random().toString(36).substr(2, 6);
+    const empId = id || "emp-" + Math.random().toString(36).substr(2, 6);
     
     // Initialize new employer with 1000 RR balance!
     emp = {
@@ -283,12 +298,28 @@ async function startServer() {
       return res.status(404).json({ error: "Employer not found" });
     }
     
-    const { name, title, email, phone, telegramId } = req.body;
+    const { 
+      name, title, email, phone, telegramId,
+      googleName, googleEmail, googlePhoto, googleId, googleVerified,
+      telegramPhoto, telegramFirstName, telegramLastName, telegramUsername
+    } = req.body;
+    
     if (name !== undefined) emp.name = name;
     if (title !== undefined) emp.title = title;
     if (email !== undefined) emp.email = email;
     if (phone !== undefined) emp.phone = phone;
     if (telegramId !== undefined) emp.telegramId = telegramId;
+    
+    if (googleName !== undefined) emp.googleName = googleName;
+    if (googleEmail !== undefined) emp.googleEmail = googleEmail;
+    if (googlePhoto !== undefined) emp.googlePhoto = googlePhoto;
+    if (googleId !== undefined) emp.googleId = googleId;
+    if (googleVerified !== undefined) emp.googleVerified = googleVerified;
+    
+    if (telegramPhoto !== undefined) emp.telegramPhoto = telegramPhoto;
+    if (telegramFirstName !== undefined) emp.telegramFirstName = telegramFirstName;
+    if (telegramLastName !== undefined) emp.telegramLastName = telegramLastName;
+    if (telegramUsername !== undefined) emp.telegramUsername = telegramUsername;
     
     res.json({ success: true, employer: emp });
   });
@@ -394,6 +425,41 @@ async function startServer() {
     res.json({ success: true, balance: emp.balance, limits: emp.limits, payment: newPayment });
   });
 
+  // DB APIs: Companies Endpoints
+  app.get("/api/companies", (req, res) => {
+    res.json(db.companies || []);
+  });
+
+  app.post("/api/companies", (req, res) => {
+    const { name, slug, industry, staff, description, sites, logoUrl, employerId } = req.body;
+    const finalSlug = slug || name.toLowerCase()
+      .replace(/[^а-яёa-z0-9\s-]/gi, "")
+      .trim()
+      .replace(/\s+/g, "-");
+    
+    // Check if already exists
+    let comp = db.companies.find(c => c.slug === finalSlug);
+    if (comp) {
+      return res.json(comp);
+    }
+
+    const newCompany = {
+      id: "comp-" + Math.random().toString(36).substr(2, 6),
+      name,
+      slug: finalSlug,
+      industry: industry || "Производство",
+      staff: staff || "10-25 человек",
+      description: description || "",
+      sites: sites || "",
+      logoUrl: logoUrl || "",
+      employerId: employerId || "emp-demo",
+      activeVacancies: 0
+    };
+
+    db.companies.push(newCompany);
+    res.status(201).json(newCompany);
+  });
+
   // DB APIs: Get projects
   app.get("/api/projects", (req, res) => {
     res.json(db.projects);
@@ -403,6 +469,19 @@ async function startServer() {
     const proj = db.projects.find(p => p.id === req.params.id);
     if (!proj) return res.status(404).json({ error: "Project not found" });
     res.json(proj);
+  });
+
+  app.put("/api/projects/:id", (req, res) => {
+    const projIndex = db.projects.findIndex(p => p.id === req.params.id);
+    if (projIndex === -1) return res.status(404).json({ error: "Project not found" });
+
+    // Update fields from body
+    const proj = db.projects[projIndex];
+    db.projects[projIndex] = {
+      ...proj,
+      ...req.body
+    };
+    res.json(db.projects[projIndex]);
   });
 
   // DB APIs: Candidates
@@ -503,7 +582,24 @@ async function startServer() {
       "Продемонстрируйте ваш подход в планировании задач на неделю при высокой степени неопределенности."
     ];
 
-    let motivationText = "Мы ищем ответственного специалиста в нашу команду. Предлагаем гибкий график, наставничество и огромные возможности роста.";
+    let motivationText = `Мы ищем ответственного специалиста в нашу команду на позицию ${roleName}. Предлагаем гибкий график, наставничество и огромные возможности роста.`;
+
+    // Dynamic fallbacks for the requested subpages:
+    let vacancyText = `Мы рады предложить вакансию на ключевую роль: ${roleName} в инновационной компании ${companyName}.\n\nОсновные задачи:\n- Качественное выполнение профессиональных регламентов\n- Активная коммуникация в рамках проектов\n- Постоянное профессиональное развитие в ИИ-сфере.\n\nТребования:\n- Грамотная речь, обучаемость\n- Инициативность и ответственность.`;
+    
+    let motivationTextDetail = `В нашей компании ${companyName} вы сможете полностью раскрыть свой профессиональный потенциал на роли "${roleName}".\n\nМы предлагаем:\n- Прозрачную систему мотивации и KPI\n- Возможности карьерного роста до руководителя группы\n- Регулярные премии за перевыполнение планов работы.`;
+    
+    let companyText = `${companyName} — это динамично развивающаяся прогрессивная компания, применяющая ИИ-решения для бизнеса.\nМы создаем комфортные условия труда, ценим идеи наших сотрудников и обеспечиваем дружелюбную атмосферу во всех отделах.`;
+    
+    let onboardingText = `Добро пожаловать в команду ${companyName}!\n\nВаш онбординг начинается прямо здесь в цифровом кабинете:\n1. Ознакомительный этап и условия\n2. Прохождение ИИ-собеседования\n3. Подготовка и сдача экзамена по нашей корпоративной Wiki\n4. Первая встреча с наставником и запуск в работу!`;
+    
+    let payoutsText = `Система вознаграждения:\n- Фиксированная базовая ставка: ${salaryTerms || "конкурентный оклад"}\n- Дополнительные KPI за успешные результаты\n- Выплаты производятся стабильно 2 раза в месяц без задержек.`;
+    
+    let scheduleText = `Условия работы:\n- Режим работы: ${scheduleTerms || "5/2, гибкий или гибридный график"}\n- Возможность работать удаленно из любого региона\n- Поддержка баланса между работой и личной жизнью.`;
+    
+    let teamText = `Вы будете работать в тесном взаимодействии с дружными экспертами компании ${companyName}.\nЗа вами на этапе стажировки закрепляется опытный лидер-наставник, готовый прийти на помощь в любой ситуации.`;
+    
+    let systemText = `Контроль качества работы и интерактивная база знаний компании ${companyName} со встроенными ИИ-симуляциями Робота Рекрутера помогут вам быстро привыкнуть к корпоративным стандартам.\nИзучайте Wiki и сдавайте тесты в реальном времени!`;
 
     if (aiClient) {
       try {
@@ -513,15 +609,31 @@ async function startServer() {
 Описание / Документы / Вики: "${customWiki || "Нет дополнительных сведений"}"
 
 Твоя задача — сгенерировать ИИ-систему адаптации в строго структурированном формате JSON:
-1. "motivationText": Текст-продажа вакансии и условий, мотивирующий кандидата (2-3 абзаца).
+1. "motivationText": Краткий текст-продажа вакансии и условий, мотивирующий кандидата (2-3 абзаца).
 2. "checklistQuestions": Массив из ровно 3 профессиональных вопросов-проверок (чек-лист) для оценки базовых требований.
 3. "roleplayQuestions": Массив из ровно 2 ролевых гипотетических ситуаций (ролевая игра), в которых кандидат должен ответить от первого лица, показав навыки на практике.
+4. "vacancyText": Подробное описание обязанностей и требований для страницы /vacancy.
+5. "motivationTextDetail": Ответ на вопрос "Почему работа у нас - это круто?" с описанием роста для страницы /motivation.
+6. "companyText": Подробный вдохновляющий текст об истории, миссии и ценностях компании для страницы /company.
+7. "onboardingText": Пошаговый план прохождения испытательного срока и адаптации для страницы /onboarding.
+8. "payoutsText": Исчерпывающее описание выплат, оклада, KPI и бонусов для страницы /payouts.
+9. "scheduleText": Расписание, тайм-менеджмент, формат работы (удаленка, офис) для страницы /schedule.
+10. "teamText": Информация о команде, наставниках и руководителе для страницы /team.
+11. "systemText": Описание ИИ-системы тестирования, Wiki и регламентов для страницы /system.
 
 Верни ТОЛЬКО валидный JSON-объект без форматирования markdown (без \`\`\`json \`\`\`), соответствующий схеме:
 {
   "motivationText": "строка",
   "checklistQuestions": ["вопрос1", "вопрос2", "вопрос3"],
-  "roleplayQuestions": ["ситуация1", "ситуация2"]
+  "roleplayQuestions": ["ситуация1", "ситуация2"],
+  "vacancyText": "строка",
+  "motivationTextDetail": "строка",
+  "companyText": "строка",
+  "onboardingText": "строка",
+  "payoutsText": "строка",
+  "scheduleText": "строка",
+  "teamText": "строка",
+  "systemText": "строка"
 }`;
 
         const response = await aiClient.models.generateContent({
@@ -538,6 +650,14 @@ async function startServer() {
         if (parsed.motivationText) motivationText = parsed.motivationText;
         if (parsed.checklistQuestions) checklistQuestions = parsed.checklistQuestions;
         if (parsed.roleplayQuestions) roleplayQuestions = parsed.roleplayQuestions;
+        if (parsed.vacancyText) vacancyText = parsed.vacancyText;
+        if (parsed.motivationTextDetail) motivationTextDetail = parsed.motivationTextDetail;
+        if (parsed.companyText) companyText = parsed.companyText;
+        if (parsed.onboardingText) onboardingText = parsed.onboardingText;
+        if (parsed.payoutsText) payoutsText = parsed.payoutsText;
+        if (parsed.scheduleText) scheduleText = parsed.scheduleText;
+        if (parsed.teamText) teamText = parsed.teamText;
+        if (parsed.systemText) systemText = parsed.systemText;
 
       } catch (err) {
         console.error("Gemini failed during project onboarding generation, using quality fallbacks:", err);
@@ -547,13 +667,24 @@ async function startServer() {
     const newProj = {
       id: "proj-" + Math.random().toString(36).substr(2, 9),
       companyName,
+      companySlug: req.body.companySlug || "",
+      employerId: req.body.employerId || "",
       roleName,
       salaryTerms: salaryTerms || "Конкурентные условия (по результатам интервью)",
       scheduleTerms: scheduleTerms || "Обсуждается индивидуально",
       motivationText,
       checklistQuestions,
       roleplayQuestions,
-      customWiki: customWiki || ""
+      customWiki: customWiki || "",
+      vacancyText,
+      motivationTextDetail,
+      companyText,
+      onboardingText,
+      payoutsText,
+      scheduleText,
+      teamText,
+      systemText,
+      logoUrl: req.body.logoUrl || "https://i.ibb.co/WWRbtPq0/RR-Logo.png"
     };
 
     db.projects.push(newProj);

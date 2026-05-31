@@ -60,6 +60,8 @@ export interface Candidate {
 export interface JobProject {
   id: string;
   companyName: string;
+  companySlug?: string;
+  employerId?: string;
   roleName: string;
   salaryTerms?: string;
   scheduleTerms?: string;
@@ -68,6 +70,17 @@ export interface JobProject {
   checklistQuestions: string[];
   roleplayQuestions: string[];
   createdTasks?: boolean;
+
+  // Precise subpages details
+  vacancyText?: string;
+  motivationTextDetail?: string;
+  companyText?: string;
+  onboardingText?: string;
+  payoutsText?: string;
+  scheduleText?: string;
+  teamText?: string;
+  systemText?: string;
+  logoUrl?: string;
 }
 
 export interface Message {

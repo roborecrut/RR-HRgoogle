@@ -10,6 +10,7 @@ import EmployerPanel from "./pages/EmployerPanel";
 import CandidateFlow from "./pages/CandidateFlow";
 import AdminPanel from "./pages/AdminPanel";
 import JobVacancyLanding from "./pages/JobVacancyLanding";
+import CompanyLanding from "./pages/CompanyLanding";
 
 function AppContent() {
   const { path } = useRouter();
@@ -18,8 +19,14 @@ function AppContent() {
     return <CandidateFlow />;
   }
 
-  if (path.startsWith("/employer")) {
+  if (/^\/employer[a-zA-Z0-9_-]*/.test(path)) {
     return <EmployerPanel />;
+  }
+
+  const segments = path.split("/").filter(Boolean);
+  const reserved = ["main", "vacancy", "admin", "job", "auth", "setup", "candidate", "employer"];
+  if (segments.length > 0 && !reserved.includes(segments[0])) {
+    return <CompanyLanding />;
   }
 
   // Simple state routing map
