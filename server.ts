@@ -490,9 +490,9 @@ async function startServer() {
   });
 
   app.post("/api/candidates", (req, res) => {
-    const { name, email, telegramUsername, telegramId, projectId, roleName, registeredVia } = req.body;
+    const { name, email, telegramUsername, telegramId, projectId, roleName, registeredVia, id } = req.body;
     const newCand = {
-      id: "cand-" + Math.random().toString(36).substr(2, 9),
+      id: id || "candidate" + Math.floor(100000 + Math.random() * 900000),
       name,
       email,
       telegramUsername,
@@ -502,7 +502,8 @@ async function startServer() {
       currentStage: "terms",
       registeredVia: registeredVia || "google",
       createdAt: new Date().toISOString(),
-      trainingPlan: []
+      trainingPlan: [],
+      ...req.body
     };
     db.candidates.push(newCand);
 

@@ -46,6 +46,12 @@ export interface Candidate {
   email: string;
   telegramUsername?: string;
   telegramId?: string;
+  telegramFirstName?: string;
+  telegramLastName?: string;
+  telegramAvatar?: string;
+  googleName?: string;
+  googleEmail?: string;
+  googleAvatar?: string;
   projectId: string; // Attached to which Employer Onboarding system
   roleName: string;
   currentStage: "terms" | "interview" | "scoring" | "training" | "certified";
@@ -81,6 +87,8 @@ export interface JobProject {
   teamText?: string;
   systemText?: string;
   logoUrl?: string;
+  tasksActivityText?: string;
+  cabinetTabsText?: string;
 }
 
 export interface Message {

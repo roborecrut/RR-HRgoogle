@@ -2672,162 +2672,29 @@ export default function EmployerPanel() {
           <div className="flex gap-4 text-xs text-slate-400 font-semibold">
             <button onClick={() => navigate("/main")} className="hover:text-white transition">Главная</button>
             <button onClick={() => navigate("/vacancy")} className="hover:text-white transition">Каталог</button>
-            <button onClick={() => navigate("/employer/crm")} className="hover:text-white transition">Панель Руководителя</button>
-            <button onClick={() => navigate("/candidate")} className="hover:text-white transition">Панель Кандидата</button>
+            <button onClick={() => navigate("/employer/crm")} className="hover:text-white transition">Панель CRM</button>
           </div>
         </div>
       </footer>
 
-      {/* MODAL WINDOW 1: DETAILED INTEGRATED CANDIDATE CARD VIEWER */}
-      {selectedCandidate && (
+      {/* MODAL WINDOW FOR PAYMENT */}
+      {selectedPlanToBuy && (
         <div className="fixed inset-0 z-50 bg-black/75 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="bg-[#1D3E5E] border border-[#E7C768]/60 p-6 rounded-3xl w-full max-w-2xl text-left text-white shadow-2xl relative max-h-[85vh] overflow-y-auto space-y-5">
+          <div className="bg-[#1D3E5E] border-2 border-[#E7C768]/60 p-6 rounded-3xl w-full max-w-md text-left text-white shadow-2xl relative space-y-4 animate-fadeIn">
             <button 
-              onClick={() => setSelectedCandidate(null)} 
-              className="absolute top-4 right-4 text-slate-400 hover:text-white text-lg font-bold"
+              onClick={() => setSelectedPlanToBuy(null)} 
+              className="absolute top-4 right-4 text-slate-400 hover:text-white text-lg font-bold cursor-pointer bg-white/5 border border-white/5 w-8 h-8 rounded-full flex items-center justify-center transition"
             >
               ✕
             </button>
-
-            {/* Title card banner */}
-            <div className="border-b border-white/10 pb-3">
-              <span className="text-[10px] font-bold text-slate-400 uppercase font-mono tracking-wider">Федеральный профиль соискателя №{selectedCandidate.id.substring(0, 8)}</span>
-              <h2 className="text-xl font-bold text-[#E7C768] mt-1 flex items-center gap-2">
-                <User className="w-5 h-5 text-amber-400" /> {selectedCandidate.name}
-              </h2>
-              <div className="text-xs text-slate-300 flex flex-wrap gap-x-4 mt-1 font-mono">
-                <span>📧 {selectedCandidate.email}</span>
-                {selectedCandidate.telegramUsername && <span>💬 @{selectedCandidate.telegramUsername}</span>}
-                <span>📅 от: {selectedCandidate.createdAt ? new Date(selectedCandidate.createdAt).toLocaleDateString() : "Недавно"}</span>
-              </div>
-            </div>
-
-            {/* Score ring stats */}
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-center font-mono">
-              <div className="bg-black/30 p-2.5 rounded-xl border border-white/5">
-                <span className="text-[9px] text-gray-400 block uppercase">1. Резюме</span>
-                <span className="text-white text-base font-bold">{selectedCandidate.scores?.resumeScore || 70}/100</span>
-              </div>
-              <div className="bg-black/30 p-2.5 rounded-xl border border-white/5">
-                <span className="text-[9px] text-gray-400 block uppercase">2. Чек-лист</span>
-                <span className="text-white text-base font-bold">{selectedCandidate.scores?.checklistScore || 80}/100</span>
-              </div>
-              <div className="bg-black/30 p-2.5 rounded-xl border border-white/5">
-                <span className="text-[9px] text-gray-400 block uppercase">3. Ситуации</span>
-                <span className="text-white text-base font-bold">{selectedCandidate.scores?.situationsScore || 75}/100</span>
-              </div>
-              <div className="bg-[#E7C768]/10 p-2.5 rounded-xl border border-[#E7C768]/20">
-                <span className="text-[9px] text-[#E7C768] block uppercase font-bold">Общий балл</span>
-                <span className="text-[#E7C768] text-base font-black">
-                  {Math.round(
-                    ((selectedCandidate.scores?.resumeScore !== undefined ? selectedCandidate.scores.resumeScore : 70) +
-                     (selectedCandidate.scores?.checklistScore !== undefined ? selectedCandidate.scores.checklistScore : 80) +
-                     (selectedCandidate.scores?.situationsScore !== undefined ? selectedCandidate.scores.situationsScore : 75)) / 3
-                  )}/100
-                </span>
-              </div>
-            </div>
-
-            {/* Deep summaries */}
-            <div className="space-y-3 font-normal text-xs leading-relaxed text-slate-200">
-              <div className="bg-black/25 p-4 rounded-2xl border border-white/5 space-y-1.5">
-                <span className="text-[10px] font-bold text-[#E7C768] block uppercase font-mono">ИИ Сводка результатов Робоконкурса:</span>
-                <p className="italic">"{selectedCandidate.scores?.assessmentSummary || "Кандидат продемонстрировал хорошие базовые результаты на собеседовании. Отлично коммуницирует."}"</p>
-              </div>
-
-              {selectedCandidate.resumeText && (
-                <div className="space-y-1">
-                  <span className="font-bold text-white block">Текст резюме куратора:</span>
-                  <div className="bg-black/45 p-3 rounded-xl border border-white/5 font-mono text-[10.5px] max-h-32 overflow-y-auto whitespace-pre-wrap">
-                    {selectedCandidate.resumeText}
-                  </div>
-                </div>
-              )}
-            </div>
-
-            {/* Change progress controls directly inside details popup */}
-            <div className="pt-4 border-t border-white/10 flex flex-col sm:flex-row justify-between items-center gap-3">
-              <div className="text-xs">
-                <span>Перевести соискателя: </span>
-                <strong className="text-white">{selectedCandidate.currentStage}</strong>
-              </div>
-
-              <div className="flex gap-2 text-xs font-semibold">
-                <button
-                  onClick={() => {
-                    handleUpdateCandidateStage(selectedCandidate.id, "training");
-                    setSelectedCandidate(null);
-                  }}
-                  className="bg-indigo-600 hover:bg-indigo-700 text-white px-3.5 py-1.5 rounded-lg shadow"
-                >
-                  Перевести на обучение 📖
-                </button>
-                <button
-                  onClick={() => {
-                    handleUpdateCandidateStage(selectedCandidate.id, "certified");
-                    setSelectedCandidate(null);
-                  }}
-                  className="bg-emerald-650 hover:bg-emerald-700 text-white px-3.5 py-1.5 rounded-lg shadow font-bold"
-                >
-                  Выдать Сертификат 🎓
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* MODAL WINDOW 2: INTERACTIVE SIMULATED TARIFFS PURCHASE BILLING */}
-      {showPaymentModal && selectedPlanToBuy && (
-        <div className="fixed inset-0 z-50 bg-black/85 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="bg-[#1D3E5E] border-2 border-[#E7C768]/60 p-6 rounded-3xl w-full max-w-md text-left text-white shadow-2xl relative space-y-4">
-            <button onClick={() => setShowPaymentModal(false)} className="absolute top-4 right-4 text-slate-400 hover:text-white font-bold">✕</button>
-
-            <div>
-              <span className="text-[10px] font-bold text-emerald-400 uppercase font-mono block">Simulated Safe Gateway v2.2</span>
-              <h2 className="text-base font-bold text-white mt-1">Оплата обновления аккаунта Робот Рекрутер</h2>
-              <p className="text-xs text-slate-300 mt-1">Комиссия банка: 0% | Безопасная транзакция в российских рублях.</p>
-            </div>
-
-            <div className="bg-black/35 p-4 rounded-2xl border border-white/5 space-y-1 text-xs">
-              <div className="flex justify-between">
-                <span>Выбранный пакет:</span>
-                <span className="font-bold text-[#E7C768] uppercase">{selectedPlanToBuy === "silver" ? "Тариф Серебро ИИ" : "Тариф VIP Золото"}</span>
-              </div>
-              <div className="flex justify-between">
-                <span>Итого к оплате:</span>
-                <span className="font-bold text-white font-mono">{selectedPlanToBuy === "silver" ? "14 900 ₽" : "39 900 ₽"}</span>
-              </div>
-            </div>
-
-            {/* Mock Credit Card selection form details screen */}
-            <div className="space-y-3 font-normal text-xs">
-              <div>
-                <label className="text-slate-300 block mb-1">Номер банковской карты или СБП телефон:</label>
-                <input 
-                  type="text" 
-                  className="w-full bg-[#17344F]/80 border border-white/10 rounded-xl px-3 py-2 text-white font-mono" 
-                  placeholder="2202 0000 0000 1234"
-                  defaultValue="2202 5901 2294 1049"
-                />
-              </div>
-
-              <div className="grid grid-cols-2 gap-3 font-mono">
-                <div>
-                  <label className="text-slate-300 block mb-0.5 font-sans">Срок действия:</label>
-                  <input type="text" className="w-full bg-[#17344F]/80 border border-white/10 rounded-xl px-3 py-2 text-center text-white" placeholder="05/29" defaultValue="08/29" />
-                </div>
-                <div>
-                  <label className="text-slate-300 block mb-0.5 font-sans">Код CVC2/CVV2:</label>
-                  <input type="password" className="w-full bg-[#17344F]/80 border border-white/10 rounded-xl px-3 py-2 text-center text-white" placeholder="***" defaultValue="943" />
-                </div>
-              </div>
-            </div>
-
+            <h2 className="text-lg font-bold text-[#E7C768]">Оплата тарифа</h2>
+            <p className="text-xs text-slate-200 leading-relaxed">
+              Вы активируете тариф <strong className="text-white bg-[#E7C768]/20 px-2 py-0.5 rounded border border-[#E7C768]/30">{selectedPlanToBuy === "silver" ? "Серебро Про" : "Золото Безлимит"}</strong>. Оплата производится через безопасный шлюз.
+            </p>
             <button
               onClick={handleConfirmPayment}
               disabled={isProcessingPayment}
-              className="cursor-pointer w-full bg-gradient-to-r from-emerald-600 to-teal-700 py-3 rounded-xl text-center text-xs font-bold text-white uppercase shadow-md transition disabled:opacity-40"
+              className="w-full bg-[#E7C768] hover:bg-[#d6b75c] active:scale-98 text-[#112335] font-black text-xs py-3.5 rounded-xl transition flex items-center justify-center gap-1.5 cursor-pointer"
             >
               {isProcessingPayment ? (
                 <span className="flex items-center justify-center gap-1">
@@ -2997,163 +2864,175 @@ export default function EmployerPanel() {
                 </div>
 
                 {/* Split Workspace Column Grid */}
-                <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 pt-1.5">
+                <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 pt-1.5 font-sans">
                   
-                  {/* Left Column: Focused text Area */}
-                  <div className="lg:col-span-5 bg-black/15 p-4 rounded-2xl border border-white/5 flex flex-col justify-between space-y-4">
-                    <div className="space-y-3">
-                      <div className="flex justify-between items-center bg-white/5 p-2 rounded-xl border border-white/5">
-                        <span className="text-[10px] font-mono text-emerald-400 uppercase font-black">Свойства поля</span>
-                        <span className="text-[10px] text-slate-400 font-mono">ID: {editorSubTab}</span>
-                      </div>
-
-                      {editorSubTab === "vacancy" && (
-                        <div className="space-y-1.5">
-                          <label className="text-xs font-bold text-slate-200 block">Раздел: Обязанности & Требования</label>
-                          <p className="text-[10px] text-slate-400 leading-tight">Каждый пункт пишите с новой строки (или используйте дефис/точку):</p>
-                          <textarea
-                            rows={8}
-                            className="w-full bg-[#112335] text-xs p-3 rounded-xl border border-white/10 text-white font-mono focus:outline-[#E7C768]"
-                            value={editingProject.vacancyText || ""}
-                            onChange={(e) => setEditingProject({ ...editingProject, vacancyText: e.target.value })}
-                          />
-                        </div>
-                      )}
-
-                      {editorSubTab === "motivation" && (
-                        <div className="space-y-1.5">
-                          <label className="text-xs font-bold text-slate-200 block">Раздел: Мотивация и привилегии</label>
-                          <p className="text-[10px] text-slate-400 leading-tight">Каждый бонус или карьерную опцию пишите с новой строки:</p>
-                          <textarea
-                            rows={8}
-                            className="w-full bg-[#112335] text-xs p-3 rounded-xl border border-white/10 text-white font-mono focus:outline-[#E7C768]"
-                            value={editingProject.motivationTextDetail || ""}
-                            onChange={(e) => setEditingProject({ ...editingProject, motivationTextDetail: e.target.value })}
-                          />
-                        </div>
-                      )}
-
-                      {editorSubTab === "company" && (
-                        <div className="space-y-1.5">
-                          <label className="text-xs font-bold text-slate-200 block">Раздел: О компании и масштабе</label>
-                          <p className="text-[10px] text-slate-400 leading-tight">Основные факты, масштаб и достижения компании по строкам:</p>
-                          <textarea
-                            rows={8}
-                            className="w-full bg-[#112335] text-xs p-3 rounded-xl border border-white/10 text-white font-mono focus:outline-[#E7C768]"
-                            value={editingProject.companyText || ""}
-                            onChange={(e) => setEditingProject({ ...editingProject, companyText: e.target.value })}
-                          />
-                        </div>
-                      )}
-
-                      {editorSubTab === "onboarding" && (
-                        <div className="space-y-1.5">
-                          <label className="text-xs font-bold text-slate-200 block">Раздел: Процесс Оформления</label>
-                          <p className="text-[10px] text-slate-400 leading-tight">Опишите по порядку этапы стажировки (4 этапа по очереди с новых строк):</p>
-                          <textarea
-                            rows={8}
-                            className="w-full bg-[#112335] text-xs p-3 rounded-xl border border-white/10 text-white font-mono focus:outline-[#E7C768]"
-                            value={editingProject.onboardingText || ""}
-                            onChange={(e) => setEditingProject({ ...editingProject, onboardingText: e.target.value })}
-                          />
-                        </div>
-                      )}
-
-                      {editorSubTab === "payouts" && (
-                        <div className="space-y-1.5">
-                          <label className="text-xs font-bold text-slate-200 block">Раздел: Финансовые Выплаты</label>
-                          <p className="text-[10px] text-slate-400 leading-tight">Опишите фикс, сроки аванса и регулярность выплат по строкам:</p>
-                          <textarea
-                            rows={8}
-                            className="w-full bg-[#112335] text-xs p-3 rounded-xl border border-white/10 text-white font-mono focus:outline-[#E7C768]"
-                            value={editingProject.payoutsText || ""}
-                            onChange={(e) => setEditingProject({ ...editingProject, payoutsText: e.target.value })}
-                          />
-                        </div>
-                      )}
-
-                      {editorSubTab === "schedule" && (
-                        <div className="space-y-1.5">
-                          <label className="text-xs font-bold text-slate-200 block">Раздел: График Работы</label>
-                          <p className="text-[10px] text-slate-400 leading-tight">Разъясните гибкость смен, тайм-слоты и минимальные часы с новых строк:</p>
-                          <textarea
-                            rows={8}
-                            className="w-full bg-[#112335] text-xs p-3 rounded-xl border border-white/10 text-white font-mono focus:outline-[#E7C768]"
-                            value={editingProject.scheduleText || ""}
-                            onChange={(e) => setEditingProject({ ...editingProject, scheduleText: e.target.value })}
-                          />
-                        </div>
-                      )}
-
-                      {editorSubTab === "team" && (
-                        <div className="space-y-1.5">
-                          <label className="text-xs font-bold text-slate-200 block">Раздел: Наша Команда</label>
-                          <p className="text-[10px] text-slate-400 leading-tight">Каждого куратора пишите в формате: Имя - Должность. Текст девиза.</p>
-                          <textarea
-                            rows={8}
-                            className="w-full bg-[#112335] text-xs p-3 rounded-xl border border-white/10 text-white font-mono focus:outline-[#E7C768]"
-                            value={editingProject.teamText || ""}
-                            onChange={(e) => setEditingProject({ ...editingProject, teamText: e.target.value })}
-                          />
-                        </div>
-                      )}
-
-                      {editorSubTab === "system" && (
-                        <div className="space-y-1.5">
-                          <label className="text-xs font-bold text-slate-200 block">Раздел: ИИ-Система РобоРекрут</label>
-                          <p className="text-[10px] text-slate-400 leading-tight">Опишите критерии оценки диалога, время на тест и сдачу по строкам:</p>
-                          <textarea
-                            rows={8}
-                            className="w-full bg-[#112335] text-xs p-3 rounded-xl border border-white/10 text-white font-mono focus:outline-[#E7C768]"
-                            value={editingProject.systemText || ""}
-                            onChange={(e) => setEditingProject({ ...editingProject, systemText: e.target.value })}
-                          />
-                        </div>
-                      )}
+                  {/* Left Column: Vertical stack of ALL 8 editable fields */}
+                  <div className="lg:col-span-5 bg-black/15 p-4 rounded-2xl border border-white/5 space-y-4 max-h-[660px] overflow-y-auto scrollbar-thin">
+                    <div className="flex justify-between items-center bg-white/5 p-2 rounded-xl border border-white/5">
+                      <span className="text-[10px] font-mono text-emerald-400 uppercase font-bold">Поля редактирования блока (8 шт)</span>
+                      <span className="text-[9px] text-slate-400">Кликните по предпросмотру или тут</span>
                     </div>
 
+                    {[
+                      {
+                        key: "company",
+                        label: "🏢 О компании и масштабе",
+                        hint: "Основные факты, масштаб и достижения компании по строкам:",
+                        field: "companyText"
+                      },
+                      {
+                        key: "vacancy",
+                        label: "💼 Обязанности & Требования",
+                        hint: "Каждый пункт пишите с новой строки:",
+                        field: "vacancyText"
+                      },
+                      {
+                        key: "schedule",
+                        label: "📅 График Работы",
+                        hint: "Разъясните гибкость смен, тайм-слоты и минимальные часы по строкам:",
+                        field: "scheduleText"
+                      },
+                      {
+                        key: "motivation",
+                        label: "🔥 Мотивация и привилегии",
+                        hint: "Каждый бонус или карьерную опцию пишите с новой строки:",
+                        field: "motivationTextDetail"
+                      },
+                      {
+                        key: "payouts",
+                        label: "💵 Финансовые Выплаты",
+                        hint: "Опишите фикс, сроки аванса и регулярность выплат по строкам:",
+                        field: "payoutsText"
+                      },
+                      {
+                        key: "onboarding",
+                        label: "🚀 Процесс Оформления",
+                        hint: "Опишите по порядку этапы стажировки (с новых строк):",
+                        field: "onboardingText"
+                      },
+                      {
+                        key: "team",
+                        label: "👥 Наша Команда",
+                        hint: "Каждого куратора пишите в формате: Имя - Должность. Текст девиза.",
+                        field: "teamText"
+                      },
+                      {
+                        key: "system",
+                        label: "⚙️ ИИ-Система РобоРекрут",
+                        hint: "Опишите критерии оценки диалога, время на тест и сдачу по строкам:",
+                        field: "systemText"
+                      }
+                    ].map((item) => {
+                      const isActive = editorSubTab === item.key;
+                      const getDefaultValue = (k: string) => {
+                        if (k === "company") return "• Мы поставляем автоматизированные скрипты и голосовых помощников на рынке СНГ.\n• Создали более 15 крупных интеграций года.\n• Горизонтальная структура команды - у вас всегда есть прямой доступ к лидерам проекта.";
+                        if (k === "vacancy") return "• Ведение переговоров с клиентами по готовой базе\n• Внесение информации в простую CRM\n• Консультирование по тарифам\n• Быстрый и вежливый отклик\n• Уверенный пользователь ПК\n• Базовые навыки общения";
+                        if (k === "schedule") return "• Гибкие смены от 4 часов в день во временном интервале с 10:00 до 19:00.\n• Возможность брать выходные в любой день недели.\n• Вы заходите в систему ИИ тогда, когда вам это удобно.";
+                        if (k === "motivation") return "• Премии до 30% за высокую скорость заполнения карточек CRM\n• Еженедельные выплаты за успешные звонки\n• Компенсация затрат на интернет\n• Обучение за счет компании и кураторство";
+                        if (k === "payouts") return "• Фиксированная оплата за каждый пройденный качественный звонок (от 120 р).\n• Выплаты дважды в месяц без задержек (10 и 25 числа).\n• Официальные начисления на карту любого банка.\n• Бонус за приглашенных друзей - 5000 рублей.";
+                        if (k === "onboarding") return "• Быстрое тестирование навыков через ИИ-Режим\n• Ознакомление с Wiki базой знаний\n• Первые симуляционные звонки с подсказками ИИ\n• Подписание договора (ГПХ или Самозанятость) за 1 день";
+                        if (k === "team") return "• Дмитрий - Тимлид команды. Автор продающих сценариев в Wiki.\n• Ольга - HR куратор. Сопровождает подписание ГПХ договоров.\n• Мария - Специфика обучения. Поможет войти в ритм ИИ-ассистента в первые часы.";
+                        if (k === "system") return "• Ведение клиентской базы в amoCRM: своевременная смена этапов сделок, фиксация договоренностей и внесение комментариев.\n• Google Таблицы: ежедневное заполнение оперативной отчетности, учет звонков и ведение реестра договоров.\n• IP-Телефония: звонки клиентам осуществляются в один клик прямо из карточки сделки в amoCRM.\n• Четкие диалоговые регламенты: использование интерактивной Wiki для быстрой отработки сложных вопросов клиентов.\n• Координация в рабочих чатах: ежедневный разбор сложных кейсов с личным наставником.";
+                        return "";
+                      };
+                      return (
+                        <div
+                          key={item.key}
+                          id={`editor-card-${item.key}`}
+                          className={`p-3.5 rounded-xl border transition-all duration-300 space-y-2 text-left cursor-pointer ${
+                            isActive
+                              ? "bg-[#E7C768]/15 border-[#E7C768] shadow-lg ring-1 ring-[#E7C768]/30 scale-[1.01]"
+                              : "bg-black/20 border-white/10 hover:border-white/20"
+                          }`}
+                          onClick={() => setEditorSubTab(item.key)}
+                        >
+                          <div className="flex justify-between items-center">
+                            <span className="text-xs font-bold text-[#E7C768]">{item.label}</span>
+                            {isActive && (
+                              <span className="text-[8px] bg-[#E7C768] text-[#112335] px-1.5 py-0.5 rounded font-bold uppercase tracking-wider">
+                                Выбран
+                              </span>
+                            )}
+                          </div>
+                          <p className="text-[9px] text-slate-400 leading-tight">{item.hint}</p>
+                          <textarea
+                            rows={3}
+                            className="w-full bg-[#112335] text-xs p-2 rounded-lg border border-white/10 text-white font-mono focus:outline-none focus:border-[#E7C768] transition"
+                            value={(editingProject as any)[item.field] !== undefined && (editingProject as any)[item.field] !== null && (editingProject as any)[item.field] !== "" ? (editingProject as any)[item.field] : getDefaultValue(item.key)}
+                            onChange={(e) => {
+                              setEditingProject({
+                                ...editingProject,
+                                [item.field]: e.target.value
+                              });
+                            }}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setEditorSubTab(item.key);
+                            }}
+                          />
+                        </div>
+                      );
+                    })}
+
                     <div className="bg-emerald-500/10 border border-emerald-500/25 p-2.5 rounded-xl text-[10px] text-emerald-400 leading-tight">
-                      ℹ️ Изменения на правой панели обновляются мгновенно в реальном времени. Нажмите кнопку сохранить внизу для записи.
+                      ℹ️ Изменения на правой панели предпросмотра обновляются мгновенно в реальном времени. Нажмите кнопку сохранить внизу для записи.
                     </div>
                   </div>
 
-                  {/* Right Column: Beautiful Live Render */}
-                  <div className="lg:col-span-7 bg-[#112335] border border-white/10 rounded-2xl p-4.5 min-h-[340px] flex flex-col justify-between relative overflow-hidden">
-                    <div className="absolute top-2.5 right-3 flex items-center gap-1 bg-[#E7C768]/15 border border-[#E7C768]/20 text-[#E7C768] text-[9px] font-mono font-bold px-2 py-0.5 rounded-md">
-                      <span className="w-1.5 h-1.5 rounded-full bg-[#E7C768] animate-pulse" />
-                      ПРЕДПРОСМОТР БЛОКА ЛЕНДИНГА
+                  {/* Right Column: Beautiful Live Scroll preview of all blocks with interactive targeting click events */}
+                  <div className="lg:col-span-7 bg-[#112335] border border-white/10 rounded-2xl p-4 md:p-5 max-h-[660px] overflow-y-auto scrollbar-thin space-y-6">
+                    <div className="flex items-center justify-between border-b border-white/10 pb-2 mb-2">
+                      <div className="flex items-center gap-1.5 text-xs text-[#E7C768] font-mono font-bold">
+                        <span className="w-1.5 h-1.5 rounded-full bg-[#E7C768] animate-pulse" />
+                        ИНТЕРАКТИВНЫЙ ПРЕДПРОСМОТР (КЛИКНИТЕ НА БЛОК ДЛЯ РЕДАКТИРОВАНИЯ)
+                      </div>
+                      <span className="text-[8px] text-slate-350">Клик по блоку прокрутит к полю на левой панели!</span>
                     </div>
 
-                    <div className="pt-6 space-y-3">
-                      <span className="text-[9px] text-slate-400 font-mono tracking-wider block uppercase">Активирован вид: /{editorSubTab}</span>
-                      
-                      <div className="bg-black/25 p-4 rounded-xl border border-white/5 shadow-inner">
-                        {(() => {
-                          switch (editorSubTab) {
-                            case "motivation":
-                              return <MotivationView project={editingProject} />;
-                            case "company":
-                              return <CompanyView project={editingProject} />;
-                            case "onboarding":
-                              return <OnboardingView project={editingProject} />;
-                            case "payouts":
-                              return <PayoutsView project={editingProject} />;
-                            case "schedule":
-                              return <ScheduleView project={editingProject} />;
-                            case "team":
-                              return <TeamView project={editingProject} />;
-                            case "system":
-                              return <SystemView project={editingProject} />;
-                            case "vacancy":
-                            default:
-                              return <VacancyView project={editingProject} />;
-                          }
-                        })()}
-                      </div>
-                    </div>
+                    {[
+                      { key: "company", label: "🏢 О компании", component: <CompanyView project={editingProject} /> },
+                      { key: "vacancy", label: "💼 Обязанности & Требования", component: <VacancyView project={editingProject} /> },
+                      { key: "schedule", label: "📅 График Работы", component: <ScheduleView project={editingProject} /> },
+                      { key: "motivation", label: "🔥 Мотивация и привилегии", component: <MotivationView project={editingProject} /> },
+                      { key: "payouts", label: "💵 Финансовые Выплаты", component: <PayoutsView project={editingProject} /> },
+                      { key: "onboarding", label: "🚀 Процесс Оформления", component: <OnboardingView project={editingProject} /> },
+                      { key: "team", label: "👥 Наша Команда", component: <TeamView project={editingProject} /> },
+                      { key: "system", label: "⚙️ ИИ-Система РобоРекрут", component: <SystemView project={editingProject} /> }
+                    ].map((section) => {
+                      const isActive = editorSubTab === section.key;
+                      return (
+                        <div
+                          key={section.key}
+                          onClick={() => {
+                            setEditorSubTab(section.key);
+                            const element = document.getElementById(`editor-card-${section.key}`);
+                            if (element) {
+                              element.scrollIntoView({ behavior: "smooth", block: "nearest" });
+                            }
+                          }}
+                          className={`cursor-pointer transition-all duration-300 border rounded-2xl p-4 bg-black/15 text-left relative group select-none hover:shadow-md ${
+                            isActive
+                              ? "border-[#E7C768] ring-2 ring-[#E7C768]/20 bg-[#E7C768]/5 opacity-100"
+                              : "border-white/5 opacity-85 hover:border-white/15 hover:opacity-100"
+                          }`}
+                        >
+                          <div className="absolute top-2 right-3 flex items-center gap-1.5 z-10">
+                            <span className={`text-[8px] font-bold px-1.5 py-0.5 rounded uppercase tracking-wider ${
+                              isActive ? "bg-[#E7C768] text-[#112335]" : "bg-white/5 text-slate-400 group-hover:bg-[#E7C768]/10 group-hover:text-[#E7C768]"
+                            }`}>
+                              {section.label}
+                            </span>
+                          </div>
+                          
+                          <div className="pt-2">
+                            {section.component}
+                          </div>
+                        </div>
+                      );
+                    })}
 
                     <div className="text-[9px] text-slate-500 text-right font-mono mt-2 select-none border-t border-white/5 pt-1.5">
-                      Viewport: 100% Responsive Adaptive Layout Template
+                      Режим Интерактивного Конструктора Лендинга Включен
                     </div>
                   </div>
 

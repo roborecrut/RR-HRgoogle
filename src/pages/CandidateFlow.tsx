@@ -180,6 +180,7 @@ export default function CandidateFlow() {
   // Active state ids
   const [candidate, setCandidate] = useState<Candidate | null>(null);
   const [project, setProject] = useState<JobProject | null>(null);
+  const [allProjects, setAllProjects] = useState<any[]>([]);
 
   // Flow navigation stage index: "terms" | "interview" | "scoring" | "training" | "certified"
   const [currentStage, setCurrentStage] = useState<string>("terms");
@@ -196,61 +197,130 @@ export default function CandidateFlow() {
   // Sub-tabs for "Интервью"
   const [interviewSubTab, setInterviewSubTabState] = useState<string>("resume");
 
+  // Helper to build cohesive URLs
+  const getDynamicPath = (tabId: string, subTabId?: string, forceProject?: any) => {
+    const parts = path.split("/").filter(Boolean);
+    const candIndex = parts.findIndex(p => p.startsWith("candidate"));
+    const candidateId = candidate?.id || localStorage.getItem("cand_session_id") || "cand-1";
+
+    const targetProject = forceProject || project;
+    let slug = "";
+    let vacId = "";
+
+    if (candIndex >= 2) {
+      slug = parts[0];
+      vacId = parts[1];
+    } else if (targetProject) {
+      slug = targetProject.companySlug || "ooo-roborekrut-inzhiniring";
+      vacId = targetProject.id;
+    }
+
+    let targetSub = subTabId;
+    if (!targetSub) {
+      if (tabId === "terms") targetSub = termsSubTab || "vacancy";
+      else if (tabId === "training") targetSub = trainingSubTab || "professional";
+      else if (tabId === "interview") targetSub = interviewSubTab || "resume";
+    }
+
+    if (slug && vacId) {
+      return `/${slug}/${vacId}/${candidateId}/${tabId}${targetSub ? `/${targetSub}` : ""}`;
+    } else {
+      return `/${candidateId}/${tabId}${targetSub ? `/${targetSub}` : ""}`;
+    }
+  };
+
   const setActiveTab = (tabId: string) => {
     setActiveTabState(tabId);
-    if (tabId === "terms") {
-      navigate(`/candidate/terms/${termsSubTab}`);
-    } else if (tabId === "training") {
-      navigate(`/candidate/training/${trainingSubTab}`);
-    } else if (tabId === "interview") {
-      navigate(`/candidate/interview/${interviewSubTab}`);
-    } else {
-      navigate(`/candidate/${tabId}`);
-    }
+    let sub = "";
+    if (tabId === "terms") sub = termsSubTab || "vacancy";
+    else if (tabId === "training") sub = trainingSubTab || "professional";
+    else if (tabId === "interview") sub = interviewSubTab || "resume";
+    navigate(getDynamicPath(tabId, sub));
   };
 
   const setTermsSubTab = (subTabId: string) => {
     setTermsSubTabState(subTabId);
-    navigate(`/candidate/terms/${subTabId}`);
+    navigate(getDynamicPath("terms", subTabId));
   };
 
   const setTrainingSubTab = (subTabId: string) => {
     setTrainingSubTabState(subTabId);
-    navigate(`/candidate/training/${subTabId}`);
+    navigate(getDynamicPath("training", subTabId));
   };
 
   const setInterviewSubTab = (subTabId: string) => {
     setInterviewSubTabState(subTabId);
-    navigate(`/candidate/interview/${subTabId}`);
+    navigate(getDynamicPath("interview", subTabId));
   };
+
+  // Redirect literally "candidate" or "cand" segments to proper IDs
+  useEffect(() => {
+    const parts = path.split("/").filter(Boolean);
+    const candIndex = parts.findIndex(p => {
+      const lower = p.toLowerCase();
+      return lower.startsWith("candidate") || lower.startsWith("cand");
+    });
+    
+    if (candIndex !== -1 && (parts[candIndex].toLowerCase() === "candidate" || parts[candIndex].toLowerCase() === "cand")) {
+      let properId = localStorage.getItem("cand_session_id") || "";
+      if (!properId.toLowerCase().startsWith("candidate") || !/\d+/.test(properId)) {
+        properId = "candidate" + Math.floor(100000 + Math.random() * 900000).toString();
+      }
+      localStorage.setItem("cand_session_id", properId);
+      const newParts = [...parts];
+      newParts[candIndex] = properId;
+      const newPath = "/" + newParts.join("/");
+      navigate(newPath);
+    }
+  }, [path, navigate]);
 
   // Sync URL subpath to activeTab, termsSubTab and trainingSubTab states
   useEffect(() => {
     const parts = path.split("/").filter(Boolean);
-    if (parts[0] === "candidate") {
-      const activeTabFromUrl = parts[1] || "profile";
-      if (activeTabFromUrl !== activeTab) {
-        setActiveTabState(activeTabFromUrl);
+    const candIndex = parts.findIndex(p => p.startsWith("candidate"));
+    
+    let parsedTab = "profile";
+    let parsedSubTab = "";
+
+    if (candIndex !== -1) {
+      if (candIndex === 0) {
+        parsedTab = parts[1] || "profile";
+        parsedSubTab = parts[2] || "";
+      } else if (candIndex >= 2) {
+        parsedTab = parts[3] || "profile";
+        parsedSubTab = parts[4] || "";
       }
-      
-      if (activeTabFromUrl === "terms") {
-        const subpath = parts[2] || "vacancy";
-        if (subpath !== termsSubTab) {
-          setTermsSubTabState(subpath);
-        }
-      } else if (activeTabFromUrl === "training") {
-        const subpath = parts[2] || "professional";
-        if (subpath !== trainingSubTab) {
-          setTrainingSubTabState(subpath);
-        }
-      } else if (activeTabFromUrl === "interview") {
-        const subpath = parts[2] || "resume";
-        if (subpath !== interviewSubTab) {
-          setInterviewSubTabState(subpath);
-        }
+    } else {
+      if (parts[0] && parts[0].startsWith("candidate")) {
+        parsedTab = parts[1] || "profile";
+        parsedSubTab = parts[2] || "";
+      } else if (parts[0] === "candidate") {
+        parsedTab = parts[1] || "profile";
+        parsedSubTab = parts[2] || "";
       }
     }
-  }, [path, activeTab, termsSubTab, trainingSubTab, interviewSubTab]);
+
+    if (parsedTab && parsedTab !== activeTab) {
+      setActiveTabState(parsedTab);
+    }
+    
+    if (parsedTab === "terms") {
+      const sub = parsedSubTab || "vacancy";
+      if (sub !== termsSubTab) {
+        setTermsSubTabState(sub);
+      }
+    } else if (parsedTab === "training") {
+      const sub = parsedSubTab || "professional";
+      if (sub !== trainingSubTab) {
+        setTrainingSubTabState(sub);
+      }
+    } else if (parsedTab === "interview") {
+      const sub = parsedSubTab || "resume";
+      if (sub !== interviewSubTab) {
+        setInterviewSubTabState(sub);
+      }
+    }
+  }, [path]);
 
   // Floating AI Assistant states
   const [assistOpen, setAssistOpen] = useState(false);
@@ -327,54 +397,108 @@ export default function CandidateFlow() {
     }
   };
 
-  // Load candidate session from localStorage
+  // Load candidate session from URL or localStorage
   const loadSession = async () => {
-    const candId = localStorage.getItem("cand_session_id");
-    if (!candId) {
-      // Create a default session to prevent block
-      const fallbackId = "cand-1"; // Seeded Lex Ivanov
-      localStorage.setItem("cand_session_id", fallbackId);
-      localStorage.setItem("cand_role", "candidate");
+    const parts = path.split("/").filter(Boolean);
+    const candIndex = parts.findIndex(p => {
+      const lower = p.toLowerCase();
+      return lower.startsWith("candidate") || lower.startsWith("cand");
+    });
+    
+    if (candIndex !== -1 && (parts[candIndex].toLowerCase() === "candidate" || parts[candIndex].toLowerCase() === "cand")) {
+      return;
     }
 
-    const activeId = localStorage.getItem("cand_session_id") || "cand-1";
+    let activeId = localStorage.getItem("cand_session_id") || "cand-1";
+    
+    if (candIndex !== -1) {
+      activeId = parts[candIndex];
+      localStorage.setItem("cand_session_id", activeId);
+    } else if (parts[0] && parts[0].startsWith("candidate")) {
+      activeId = parts[0];
+      localStorage.setItem("cand_session_id", activeId);
+    }
+
     try {
+      // 1. Fetch available projects
+      const resAllProjs = await fetch("/api/projects");
+      if (resAllProjs.ok) {
+        const projs = await resAllProjs.json();
+        setAllProjects(projs);
+      }
+
+      // 2. Fetch candidates
       const resCand = await fetch(`/api/candidates`);
       const candidatesList = await resCand.json();
-      const activeCand = candidatesList.find((c: any) => c.id === activeId);
+      let activeCand = candidatesList.find((c: any) => c.id === activeId);
+
+      // If starts with candidateXXXXXX and doesn't exist, auto-provision it so candidate experiences zero friction
+      if (!activeCand && activeId.startsWith("candidate")) {
+        const randomNum = activeId.replace("candidate", "");
+        const randId = randomNum || Math.floor(100000 + Math.random() * 900000).toString();
+        const createdRes = await fetch(`/api/candidates`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            id: activeId,
+            name: `Кандидат #${randId}`,
+            email: `candidate_${randId}@candidate-pool.ru`,
+            telegramUsername: "tg_candidate_demo",
+            projectId: parts[1] || "sales-prod-1",
+            roleName: "Менеджер по продажам",
+            registeredVia: "google"
+          })
+        });
+        if (createdRes.ok) {
+          activeCand = await createdRes.json();
+        }
+      }
 
       if (activeCand) {
         setCandidate(activeCand);
         setCurrentStage(activeCand.currentStage || "terms");
-        const parts = window.location.pathname.split("/").filter(Boolean);
-        if (parts[0] === "candidate" && parts[1]) {
-          setActiveTabState(parts[1]);
-          if (parts[1] === "terms" && parts[2]) {
-            setTermsSubTabState(parts[2]);
-          } else if (parts[1] === "training" && parts[2]) {
-            setTrainingSubTabState(parts[2]);
-          }
-        } else {
-          const targetTab = activeCand.currentStage || "profile";
-          setActiveTabState(targetTab);
-          if (targetTab === "terms") {
-            navigate(`/candidate/terms/vacancy`);
-          } else if (targetTab === "training") {
-            navigate(`/candidate/training/professional`);
-          } else {
-            navigate(`/candidate/${targetTab}`);
-          }
-        }
 
         // Set editing initial fields
         setProfName(activeCand.name || "");
         setProfEmail(activeCand.email || "");
         setProfTelegram(activeCand.telegramUsername || "");
 
+        // Determine tabs
+        let parsedTab = "profile";
+        let parsedSubTab = "";
+
+        if (candIndex !== -1) {
+          if (candIndex === 0) {
+            parsedTab = parts[1] || "profile";
+            parsedSubTab = parts[2] || "";
+          } else if (candIndex >= 2) {
+            parsedTab = parts[3] || "profile";
+            parsedSubTab = parts[4] || "";
+          }
+        } else {
+          if (parts[0] && parts[0].startsWith("candidate")) {
+            parsedTab = parts[1] || "profile";
+            parsedSubTab = parts[2] || "";
+          } else if (parts[0] === "candidate") {
+            parsedTab = parts[1] || "profile";
+            parsedSubTab = parts[2] || "";
+          }
+        }
+
+        setActiveTabState(parsedTab || activeCand.currentStage || "profile");
+        if (parsedTab === "terms") {
+          setTermsSubTabState(parsedSubTab || "vacancy");
+        } else if (parsedTab === "training") {
+          setTrainingSubTabState(parsedSubTab || "professional");
+        } else if (parsedTab === "interview") {
+          setInterviewSubTabState(parsedSubTab || "resume");
+        }
+
         // Fetch corresponding project details
-        const resProj = await fetch(`/api/projects/${activeCand.projectId}`);
+        const activeProjId = (candIndex >= 2 ? parts[1] : null) || activeCand.projectId || "sales-prod-1";
+        const resProj = await fetch(`/api/projects/${activeProjId}`);
         if (resProj.ok) {
-          const activeProj = await resProj.ok ? await resProj.json() : null;
+          const activeProj = await resProj.json();
           setProject(activeProj);
         }
       }
@@ -764,170 +888,158 @@ export default function CandidateFlow() {
   };
 
 
+  const tabsList = [
+    { id: "profile", title: "👤 Профиль", desc: "Мой кабинет" },
+    { id: "terms", title: "📋 Условия", desc: "О вакансии" },
+    { id: "interview", title: "💬 Собесед-ние", desc: "Блиц HR-ИИ" },
+    { id: "scoring", title: "🎯 Оценка", desc: "Анализ баллов" },
+    { id: "training", title: "📚 ИИ обучение", desc: "Курс и тесты" },
+    { id: "certified", title: "🏆 Сертификат", desc: "Мой диплом" }
+  ];
+
   return (
     <div className="bg-gradient-to-b from-[#17344F] to-[#265582] min-h-screen text-white font-sans antialiased selection:bg-[#E7C768] selection:text-[#17344F] flex flex-col justify-between">
       
-      {/* Top Header Navigation with Direct Access Bypasses */}
-      <header className="sticky top-0 z-50 bg-[#17344F]/95 backdrop-blur-md border-b border-white/10 px-4 md:px-8 py-4">
-        <div className="flex items-center justify-between gap-4 w-full">
-          <div className="flex items-center gap-2.5 cursor-pointer" onClick={() => navigate("/")}>
-            <img src="https://i.ibb.co/WWRbtPq0/RR-Logo.png" alt="RR" className="w-8 h-8 object-contain" />
+      {/* Top Header Navigation with Direct Access Bypasses for Candidates */}
+      <header className="sticky top-0 z-50 bg-[#17344F]/95 backdrop-blur-md border-b border-white/10 px-4 md:px-8 py-3">
+        <div className="flex flex-col lg:flex-row items-center justify-between gap-4 w-full">
+          {/* Logo & Vacancy info */}
+          <div className="flex items-center gap-2.5 cursor-pointer w-full lg:w-auto" onClick={() => navigate(`/${candidate?.id || localStorage.getItem("cand_session_id") || "candidate-demo"}/profile`)}>
+            <div className="bg-[#E7C768]/10 p-1.5 rounded-xl border border-[#E7C768]/20">
+              <img src="https://i.ibb.co/WWRbtPq0/RR-Logo.png" alt="RR" className="w-8 h-8 object-contain" />
+            </div>
             <div className="text-left">
-              <span className="font-bold text-sm tracking-tight text-[#E7C768]">Робот Рекрутер (RR)</span>
-              <span className="text-[9px] block font-mono text-slate-300 uppercase">Обучение & Онбординг</span>
+              <span className="font-extrabold text-sm tracking-tight text-[#E7C768] block leading-none">ЛИЧНЫЙ КАБИНЕТ СОИСКАТЕЛЯ</span>
+              <span className="text-[10px] block text-slate-350 mt-1">
+                ID кандидата: <strong className="text-white font-mono">{candidate?.id || localStorage.getItem("cand_session_id") || "—"}</strong>
+              </span>
             </div>
           </div>
 
-          {/* Global Multi-Page Navigation accessible directly */}
-          <nav className="hidden md:flex items-center justify-center gap-2 md:gap-4 text-xs md:text-sm font-semibold">
-            <button 
-              id="nav_landing"
-              onClick={() => navigate("/main")} 
-              className="transition px-3 py-1.5 rounded-xl text-slate-300 hover:text-white"
-            >
-              Главная
-            </button>
-            <button 
-              id="nav_catalog"
-              onClick={() => navigate("/vacancy")} 
-              className="transition px-3 py-1.5 rounded-xl text-slate-300 hover:text-white"
-            >
-              Каталог Профессий
-            </button>
-            <button 
-              id="nav_employer"
-              onClick={() => {
-                localStorage.setItem("employer_active_tab_intent", "crm");
-                navigate("/employer");
-              }} 
-              className="transition px-3 py-1.5 rounded-xl text-slate-300 hover:text-white flex items-center gap-1 bg-white/5 border border-white/10"
-            >
-              Панель Руководителя 💼
-            </button>
-            <button 
-              id="nav_candidate"
-              onClick={() => navigate("/candidate")} 
-              className="transition px-3 py-1.5 rounded-xl text-[#E7C768] bg-white/10 border border-[#E7C768]/20"
-            >
-              Кабинет Соискателя 🎓
-            </button>
-            <button 
-              id="nav_admin"
-              onClick={() => navigate("/admin")} 
-              className="transition px-3 py-2 rounded-xl text-indigo-300 hover:text-indigo-150 flex items-center gap-1 bg-indigo-500/10 border border-indigo-500/20"
-            >
-              Админ ⚙️
-            </button>
+          {/* Dedicated page tabs directly in header */}
+          <nav className="hidden md:flex items-center bg-black/25 p-1 rounded-xl border border-white/5 gap-1 text-xs">
+            {tabsList.map((tab) => {
+              const isActive = activeTab === tab.id;
+              return (
+                <button
+                  type="button"
+                  key={tab.id}
+                  onClick={() => setActiveTab(tab.id)}
+                  className={`cursor-pointer px-3 py-2 rounded-lg font-bold transition-all text-center flex items-center gap-1.5 whitespace-nowrap ${
+                    isActive
+                      ? "bg-[#E7C768] text-[#17344F] shadow-md scale-102"
+                      : "text-slate-300 hover:text-white hover:bg-white/5"
+                  }`}
+                >
+                  <span className="text-[11px]">{tab.title}</span>
+                </button>
+              );
+            })}
           </nav>
 
-          {candidate ? (
-            <div className="hidden md:block text-right text-xs">
-              <span className="text-slate-300">Кандидат: </span>
-              <strong className="text-[#E7C768] font-bold">{candidate.name}</strong>
-            </div>
-          ) : (
-            <div className="hidden md:block"></div>
-          )}
+          {/* Right section: Name & Logout button */}
+          <div className="hidden lg:flex items-center gap-3">
+            {candidate && (
+              <div className="bg-white/5 border border-white/10 px-3 py-1.5 rounded-xl text-left text-xs">
+                <span className="text-slate-400 text-[10px] block font-normal leading-tight">Авторизован:</span>
+                <strong className="text-[#E7C768] font-bold block mt-0.5">{candidate.name || "Соискатель"}</strong>
+              </div>
+            )}
+            <button
+              type="button"
+              onClick={() => {
+                localStorage.removeItem("cand_session_id");
+                localStorage.removeItem("cand_role");
+                navigate("/main");
+              }}
+              className="cursor-pointer bg-red-500/10 hover:bg-red-500/20 text-red-300 hover:text-red-200 border border-red-500/20 hover:border-red-500/35 px-3.5 py-2 rounded-xl font-bold transition text-xs flex items-center gap-1.5"
+              title="Выйти из кабинета"
+            >
+              <span>Выйти 🚪</span>
+            </button>
+          </div>
 
-          {/* Mobile Burger Toggle Button */}
-          <button 
-            type="button"
-            className="md:hidden flex items-center justify-center p-2 rounded-xl hover:bg-white/10 text-white transition-all"
-            onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-          >
-            {mobileMenuOpen ? <X className="w-6 h-6 text-[#E7C768]" /> : <Menu className="w-6 h-6" />}
-          </button>
+          {/* Mobile top-bar controls */}
+          <div className="flex md:hidden items-center justify-between w-full border-t border-white/5 pt-2 mt-0.5">
+            {candidate && (
+              <span className="text-[11px] font-semibold text-[#E7C768] truncate max-w-[200px]">
+                👤 {candidate.name}
+              </span>
+            )}
+            <button 
+              type="button"
+              className="flex items-center justify-center p-2 rounded-xl bg-white/5 hover:bg-white/10 text-white transition-all ml-auto"
+              onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+            >
+              {mobileMenuOpen ? <X className="w-5 h-5 text-[#E7C768]" /> : <Menu className="w-5 h-5" />}
+            </button>
+          </div>
         </div>
 
-        {/* Mobile Dropdown Menu */}
+        {/* Mobile menu container featuring the tabs directly */}
         {mobileMenuOpen && (
-          <div className="md:hidden mt-4 pt-4 border-t border-white/10 flex flex-col gap-3 font-semibold">
-            <button 
-              id="mobile_nav_landing"
+          <div className="md:hidden mt-3 pt-3 border-t border-white/10 flex flex-col gap-2">
+            <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider block px-2 mb-1">Разделы кабинета:</span>
+            {tabsList.map((tab) => {
+              const isActive = activeTab === tab.id;
+              return (
+                <button
+                  type="button"
+                  key={tab.id}
+                  onClick={() => {
+                    setActiveTab(tab.id);
+                    setMobileMenuOpen(false);
+                  }}
+                  className={`transition text-left w-full px-4 py-3 rounded-xl flex items-center justify-between ${
+                    isActive
+                      ? "bg-[#E7C768] text-[#17344F] font-bold"
+                      : "text-slate-300 hover:text-white hover:bg-white/5 font-semibold"
+                  }`}
+                >
+                  <span className="text-xs">{tab.title}</span>
+                  <span className="text-[10px] opacity-80 font-normal">{tab.desc}</span>
+                </button>
+              );
+            })}
+            <div className="h-px bg-white/5 my-1"></div>
+            <button
+              type="button"
               onClick={() => {
+                localStorage.removeItem("cand_session_id");
+                localStorage.removeItem("cand_role");
+                setMobileMenuOpen(false);
                 navigate("/main");
-                setMobileMenuOpen(false);
-              }} 
-              className="transition text-left w-full px-4 py-3 rounded-xl text-slate-300 hover:text-white hover:bg-white/5"
+              }}
+              className="cursor-pointer text-left w-full px-4 py-3 rounded-xl hover:bg-red-500/10 text-red-300 font-bold transition flex items-center gap-2"
             >
-              Главная
+              <span>Выйти из кабинета 🚪</span>
             </button>
-            <button 
-              id="mobile_nav_catalog"
-              onClick={() => {
-                navigate("/vacancy");
-                setMobileMenuOpen(false);
-              }} 
-              className="transition text-left w-full px-4 py-3 rounded-xl text-slate-300 hover:text-white hover:bg-white/5"
-            >
-              Каталог Профессий
-            </button>
-            <button 
-              id="mobile_nav_employer"
-              onClick={() => {
-                localStorage.setItem("employer_active_tab_intent", "crm");
-                navigate("/employer");
-                setMobileMenuOpen(false);
-              }} 
-              className="transition text-left w-full px-4 py-3 rounded-xl text-slate-300 hover:text-white hover:bg-white/5"
-            >
-              Панель Руководителя
-            </button>
-            <button 
-              id="mobile_nav_candidate"
-              onClick={() => {
-                navigate("/candidate");
-                setMobileMenuOpen(false);
-              }} 
-              className="transition text-left w-full px-4 py-3 rounded-xl text-slate-300 hover:text-white hover:bg-white/5"
-            >
-              Кабинет Соискателя
-            </button>
-            {candidate && (
-              <>
-                <div className="h-px bg-white/10 my-1"></div>
-                <div className="px-4 py-2 bg-white/5 rounded-xl text-xs text-left">
-                  <span className="text-slate-300">Соискатель: </span>
-                  <strong className="text-[#E7C768] font-bold block mt-0.5">{candidate.name}</strong>
-                </div>
-              </>
-            )}
           </div>
         )}
+
+        {/* Fallback tablet/mobile secondary inline nav to allow tab selection without menu for sizes md -> lg */}
+        <div className="hidden md:flex lg:hidden items-center justify-center bg-[#17344F]/50 p-1.5 rounded-xl border border-white/10 mt-3 gap-1">
+          {tabsList.map((tab) => {
+            const isActive = activeTab === tab.id;
+            return (
+              <button
+                type="button"
+                key={tab.id}
+                onClick={() => setActiveTab(tab.id)}
+                className={`cursor-pointer px-2.5 py-1.5 rounded-lg font-semibold transition text-[11px] ${
+                  isActive ? "bg-[#E7C768] text-[#17344F]" : "text-slate-300 hover:text-white"
+                }`}
+              >
+                {tab.title}
+              </button>
+            );
+          })}
+        </div>
       </header>
 
       {/* Main interactive Stepper panel */}
       <main className="flex-1 py-8 px-4 md:px-8 max-w-5xl mx-auto w-full">
         
-        {/* Clickable tabs for Subpages */}
-        <div className="mb-8 grid grid-cols-3 sm:grid-cols-6 gap-2 text-center text-xs">
-          {[
-            { id: "profile", title: "👤 Профиль", desc: "Мой кабинет" },
-            { id: "terms", title: "📋 Условия", desc: "О вакансии" },
-            { id: "interview", title: "💬 Собесед-ние", desc: "Блиц HR-ИИ" },
-            { id: "scoring", title: "🎯 Оценка", desc: "Анализ баллов" },
-            { id: "training", title: "📚 ИИ обучение", desc: "Курс и тесты" },
-            { id: "certified", title: "🏆 Сертификат", desc: "Мой диплом" }
-          ].map((tab) => {
-            const isActive = activeTab === tab.id;
-            return (
-              <button 
-                type="button"
-                key={tab.id}
-                onClick={() => setActiveTab(tab.id)}
-                className={`cursor-pointer p-2.5 rounded-xl font-bold border transition-all text-center flex flex-col justify-center items-center gap-0.5 ${
-                  isActive 
-                    ? "bg-[#E7C768] text-[#17344F] border-[#E7C768] shadow-lg scale-102" 
-                    : "bg-[#1E4468]/50 hover:bg-[#1E4468]/80 text-gray-200 border-white/10"
-                }`}
-              >
-                <span className="text-[11px] sm:text-[13px] block">{tab.title}</span>
-                <span className={`text-[8px] block font-normal opacity-80 ${isActive ? "text-[#17344F]/85" : "text-gray-400"}`}>{tab.desc}</span>
-              </button>
-            );
-          })}
-        </div>
-
         {/* Tab 1: Profile tab */}
         {activeTab === "profile" && (
           <div className="bg-[#1E4468]/15 border border-white/10 shadow-2xl backdrop-blur-md rounded-3xl p-6 md:p-8 space-y-6">
@@ -1000,79 +1112,195 @@ export default function CandidateFlow() {
                 </button>
               </form>
             ) : (
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+              <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
                 
-                {/* Details list */}
+                {/* 1. Google + Telegram metadata details */}
                 <div className="bg-black/25 p-5 rounded-2xl border border-white/5 space-y-4 text-left">
-                  <h3 className="font-bold text-xs text-[#E7C768] uppercase border-b border-white/5 pb-2">Учетная инфо</h3>
-                  <div className="space-y-2 text-xs">
-                    <div>
-                      <span className="text-gray-400 block font-normal">ФИО соискателя:</span>
-                      <strong className="text-white text-sm">{candidate?.name || "Алексей Иванов"}</strong>
+                  <h3 className="font-bold text-xs text-[#E7C768] uppercase border-b border-white/5 pb-2">🌐 Регистрация & Интеграции</h3>
+                  
+                  {/* Google Profile Data */}
+                  <div className="p-3.5 rounded-xl bg-white/5 border border-white/5 space-y-3">
+                    <div className="flex items-center justify-between">
+                      <div className="bg-red-500/10 text-red-400 px-2 py-0.5 rounded text-[9px] font-bold uppercase tracking-wider">Google Auth</div>
+                      <span className="text-[10px] text-emerald-400 font-semibold">● Активен</span>
                     </div>
-                    <div>
-                      <span className="text-gray-400 block font-normal">Адрес почты:</span>
-                      <strong className="text-white">{candidate?.email || "ivanov@example.com"}</strong>
+                    <div className="flex items-start gap-3">
+                      <img 
+                        src={candidate?.googleAvatar || `https://api.dicebear.com/7.x/adventurer/svg?seed=${candidate?.id || 'alex'}`} 
+                        alt="Google avatar" 
+                        className="w-11 h-11 rounded-xl border border-white/10 shrink-0"
+                        referrerPolicy="no-referrer"
+                      />
+                      <div className="text-xs min-w-0">
+                        <div className="text-slate-400 text-[9px] uppercase tracking-wide">ФИО в Google:</div>
+                        <strong className="text-white font-bold block truncate">{candidate?.googleName || candidate?.name || "Алексей Иванов"}</strong>
+                        <div className="text-slate-400 text-[9px] uppercase tracking-wide mt-2">Почта Google:</div>
+                        <span className="text-[#E7C768] font-mono text-[11px] block truncate">{candidate?.googleEmail || candidate?.email || "ivanov@example.com"}</span>
+                      </div>
                     </div>
-                    <div>
-                      <span className="text-gray-400 block font-normal">Контакты Telegram:</span>
-                      {candidate?.telegramUsername ? (
-                        <a href={`https://t.me/${candidate.telegramUsername}`} target="_blank" className="text-[#E7C768] font-bold underline flex items-center gap-1 mt-0.5" rel="noreferrer">
-                          @{candidate.telegramUsername} <ExternalLink className="w-3 h-3" />
-                        </a>
-                      ) : (
-                        <span className="text-gray-400 italic">не указан</span>
-                      )}
+                  </div>
+
+                  {/* Telegram Profile Data */}
+                  <div className="p-3.5 rounded-xl bg-white/5 border border-white/5 space-y-3">
+                    <div className="flex items-center justify-between">
+                      <div className="bg-sky-500/10 text-sky-400 px-2 py-0.5 rounded text-[9px] font-bold uppercase tracking-wider">Telegram Bot</div>
+                      <span className={candidate?.telegramId ? "text-emerald-400 text-[10px] font-semibold" : "text-yellow-400 text-[10px] font-semibold"}>
+                        {candidate?.telegramId ? "● Привязан" : "○ Не привязан"}
+                      </span>
+                    </div>
+                    <div className="flex items-start gap-2.5">
+                      <img 
+                        src={candidate?.telegramAvatar || `https://api.dicebear.com/7.x/identicon/svg?seed=tg_${candidate?.id || 'demo'}`} 
+                        alt="Telegram avatar" 
+                        className="w-11 h-11 rounded-xl border border-white/10 shrink-0"
+                        referrerPolicy="no-referrer"
+                      />
+                      <div className="text-xs min-w-0 space-y-1">
+                        <div>
+                          <div className="text-slate-400 text-[9px] uppercase tracking-wide">ФИО в Telegram:</div>
+                          <strong className="text-white font-bold block truncate">
+                            {candidate?.telegramFirstName || "Алексей"} {candidate?.telegramLastName || "Иванов"}
+                          </strong>
+                        </div>
+                        <div>
+                          <div className="text-slate-400 text-[9px] uppercase tracking-wide">ID Телеграм:</div>
+                          <span className="text-slate-300 font-mono text-[11px] block">{candidate?.telegramId || "123456789 (тест)"}</span>
+                        </div>
+                        <div>
+                          <div className="text-slate-400 text-[9px] uppercase tracking-wide">Юзернейм:</div>
+                          {candidate?.telegramUsername ? (
+                            <a 
+                              href={`https://t.me/${candidate.telegramUsername}`} 
+                              target="_blank" 
+                              className="text-[#E7C768] font-extrabold hover:text-[#f3da82] underline flex items-center gap-1 text-[11px] mt-0.5" 
+                              rel="noreferrer"
+                            >
+                              @{candidate.telegramUsername} <ExternalLink className="w-3 h-3 shrink-0" />
+                            </a>
+                          ) : (
+                            <span className="text-slate-450 italic text-[10px]">не привязан</span>
+                          )}
+                        </div>
+                      </div>
                     </div>
                   </div>
                 </div>
 
-                {/* Onboarding map Checklist progression */}
+                {/* 2. Onboarding map Checklist progression */}
                 <div className="bg-black/25 p-5 rounded-2xl border border-white/5 space-y-4 text-left">
                   <h3 className="font-bold text-xs text-[#E7C768] uppercase border-b border-white/5 pb-2">Степень прохождения</h3>
-                  <div className="space-y-2 text-xs">
+                  <div className="space-y-3.5 text-xs">
                     {[
-                      { id: "terms", title: "Условия изучены", stageVal: "terms" },
-                      { id: "interview", title: "ИИ Собеседование", stageVal: "interview" },
-                      { id: "scoring", title: "ИИ Оценка баллов", stageVal: "scoring" },
-                      { id: "training", title: "Курс ИИ Обучения", stageVal: "training" },
-                      { id: "certified", title: "Получен сертификат", stageVal: "certified" }
+                      { id: "terms", title: "Желаемые условия изучены", stageVal: "terms" },
+                      { id: "interview", title: "ИИ Собеседование пройдено", stageVal: "interview" },
+                      { id: "scoring", title: "Анализ и оценка баллов", stageVal: "scoring" },
+                      { id: "training", title: "Корпоративное ИИ Обучение", stageVal: "training" },
+                      { id: "certified", title: "Выдан электронный сертификат", stageVal: "certified" }
                     ].map((step, idx) => {
                       const stagesList = ["terms", "interview", "scoring", "training", "certified"];
                       const currentIdx = stagesList.indexOf(currentStage);
                       const isPast = currentIdx > idx;
                       const isCurrent = currentStage === step.stageVal;
                       return (
-                        <div key={step.id} className="flex items-center gap-2">
-                          <CheckCircle className={`w-4 h-4 ${isPast || isCurrent ? "text-emerald-400" : "text-gray-500"}`} />
-                          <span className={`${isCurrent ? "text-[#E7C768] font-bold" : "text-gray-300"}`}>
-                            {step.title} {isCurrent && "← Вы тут"}
-                          </span>
+                        <div key={step.id} className="flex items-start gap-2.5 p-1">
+                          <CheckCircle className={`w-4 h-4 shrink-0 mt-0.5 ${isPast ? "text-emerald-400" : isCurrent ? "text-[#E7C768] animate-pulse" : "text-gray-600"}`} />
+                          <div className="min-w-0">
+                            <span className={`${isCurrent ? "text-[#E7C768] font-extrabold" : isPast ? "text-slate-200" : "text-gray-400"}`}>
+                              {step.title}
+                            </span>
+                            {isCurrent && (
+                              <span className="block text-[9px] text-[#E7C768]/80 font-semibold mt-0.5 uppercase tracking-wider">Текущий шаг ИИ-отбора</span>
+                            )}
+                          </div>
                         </div>
                       );
                     })}
                   </div>
                 </div>
 
-                {/* Active Job context card */}
+                {/* 3. Active Job context card & Multi-vacancy system */}
                 <div className="bg-black/25 p-5 rounded-2xl border border-white/5 space-y-4 text-left">
-                  <h3 className="font-bold text-xs text-[#E7C768] uppercase border-b border-white/5 pb-2">Приглашение</h3>
-                  <div className="space-y-2 text-xs">
-                    <div>
-                      <span className="text-gray-400 block font-normal">Компания прикрепления:</span>
-                      <strong className="text-white text-sm">{project?.companyName || "ООО УльтраДизайн"}</strong>
+                  <h3 className="font-bold text-xs text-[#E7C768] uppercase border-b border-white/5 pb-2">📂 Выберите Компанию & Вакансию</h3>
+                  
+                  {!(path.split("/").filter(Boolean).length >= 4 && path.split("/").filter(Boolean).findIndex(p => p.startsWith("candidate")) >= 2) && (
+                    <div className="p-3 bg-amber-500/10 border border-amber-500/20 rounded-xl text-[11px] text-amber-200 leading-normal mb-2">
+                      ⚠️ Пожалуйста, <strong>выберите одну из активных вакансий ниже</strong>, чтобы начать проходить этапы ИИ-собеседования для соответствующего работодателя.
                     </div>
-                    <div>
-                      <span className="text-gray-400 block font-normal">Вакантная должность:</span>
-                      <strong className="text-[#E7C768] font-bold text-sm block">{candidate?.roleName || project?.roleName || "Менеджер"}</strong>
-                    </div>
-                    <button
-                      type="button"
-                      onClick={() => setActiveTab("terms")}
-                      className="cursor-pointer mt-2 text-[11px] font-bold bg-[#1E4468] text-white px-3 py-1.5 rounded-lg border border-white/10 text-center hover:bg-[#1E4468]/80 transition flex items-center gap-1"
-                    >
-                      Изучить детальные условия <ArrowRight className="w-3.5 h-3.5" />
-                    </button>
+                  )}
+
+                  <div className="space-y-4 max-h-[350px] overflow-y-auto scrollbar-thin pr-1 text-xs">
+                    {allProjects.map((proj) => {
+                      const slug = proj.companySlug || "ooo-roborekrut-inzhiniring";
+                      const candidateId = candidate?.id || "candidate-demo";
+                      const isSelected = project?.id === proj.id;
+                      
+                      // Precise tab path keeping current states
+                      const targetPathOfThisProj = `/${slug}/${proj.id}/${candidateId}/profile`;
+
+                      return (
+                        <div 
+                          key={proj.id} 
+                          className={`p-3.5 rounded-xl border transition-all duration-300 ${
+                            isSelected 
+                              ? "bg-[#E7C768]/15 border-[#E7C768] shadow-sm" 
+                              : "bg-[#1E4468]/20 border-white/5 hover:border-[#E7C768]/40 hover:bg-[#1E4468]/35"
+                          }`}
+                        >
+                          <div className="flex justify-between items-start gap-2">
+                            <div className="min-w-0">
+                              <span className="text-[10px] text-slate-300 font-bold block uppercase tracking-wide truncate">{proj.companyName || "ООО РобоРекрут"}</span>
+                              <strong className={`${isSelected ? "text-[#E7C768]" : "text-white"} font-extrabold text-xs block mt-0.5`}>{proj.roleName}</strong>
+                            </div>
+                            {isSelected && (
+                              <span className="text-[8px] bg-[#E7C768] text-[#112335] px-1.5 py-0.5 rounded font-bold uppercase tracking-wider whitespace-nowrap">Активна</span>
+                            )}
+                          </div>
+                          
+                          <div className="mt-3 pt-2.5 border-t border-white/5 space-y-2">
+                            <button
+                              type="button"
+                              onClick={async () => {
+                                if (!candidate) return;
+                                try {
+                                  // 1. PATCH backend candidate projectId
+                                  await fetch(`/api/candidates/${candidate.id}`, {
+                                    method: "PATCH",
+                                    headers: { "Content-Type": "application/json" },
+                                    body: JSON.stringify({
+                                      projectId: proj.id,
+                                      roleName: proj.roleName
+                                    })
+                                  });
+                                  // 2. Local state update
+                                  setProject(proj);
+                                  // 3. Move to high-fidelity /{companySlug}/{id}/{candidateId}/profile url format
+                                  navigate(targetPathOfThisProj);
+                                } catch (e) {
+                                  console.error("Error patching project selection:", e);
+                                }
+                              }}
+                              className={`cursor-pointer text-[10px] w-full font-bold px-3 py-2 rounded-xl text-center transition-all duration-200 flex items-center justify-center gap-1.5 ${
+                                isSelected 
+                                  ? "bg-[#E7C768] text-[#112335] hover:bg-[#f3ea8b]" 
+                                  : "bg-white/5 text-slate-300 hover:bg-white/10 hover:text-white border border-white/10"
+                              }`}
+                            >
+                              <span>{isSelected ? "Перейти к условиям вакансии" : "Выбрать и Активировать"}</span>
+                              <ArrowRight className="w-3 h-3 shrink-0" />
+                            </button>
+                            
+                            {isSelected && (
+                              <div className="pt-1.5">
+                                <span className="text-[9px] text-slate-400 block font-mono">Адрес страницы кандидата:</span>
+                                <div className="bg-black/35 p-2 rounded-lg border border-white/5 overflow-x-auto text-[9px] text-[#E7C768] font-mono whitespace-nowrap scrollbar-thin mt-1">
+                                  {`/${slug}/${proj.id}/${candidateId}/profile`}
+                                </div>
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      );
+                    })}
                   </div>
                 </div>
 

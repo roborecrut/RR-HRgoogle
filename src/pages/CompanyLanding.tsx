@@ -87,6 +87,7 @@ export default function CompanyLanding() {
 
   // Candidate signup modal
   const [showApplyModal, setShowApplyModal] = useState(false);
+  const [isLoginOnly, setIsLoginOnly] = useState(false);
   const [candName, setCandName] = useState("");
   const [candEmail, setCandEmail] = useState("");
   const [candTg, setCandTg] = useState("");
@@ -197,55 +198,72 @@ export default function CompanyLanding() {
     }
   };
 
-  // Immediate 1-Click candidate registration
+  // Immediate 1-Click candidate registration and login, with NO FORM.
   const triggerOneClickRegister = async (method: "google" | "telegram") => {
+    if (submitting) return;
     setAuthMethod(method);
+    setSubmitting(true);
+
     const randId = Math.floor(1000 + Math.random() * 9000);
-    const mockName = `Кандидат #${randId}`;
+    const mockName = method === "google" ? `Алексей Иванов (${randId})` : `Кандидат #${randId}`;
     const mockEmail = `candidate_${randId}@candidate-pool.ru`;
     const mockTg = method === "telegram" ? `tg_candidate_${randId}` : "";
 
-    setCandName(mockName);
-    setCandEmail(mockEmail);
-    setCandTg(mockTg);
-  };
+    const activeProject = selectedVacancy || vacancies[0] || { id: "sales-prod-1", roleName: "Менеджер по продажам", companySlug: "ooo-roborekrut-inzhiniring" };
 
-  const handleApplyOnboarding = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!selectedVacancy) return;
+    const payload: any = {
+      name: mockName,
+      email: mockEmail,
+      telegramUsername: mockTg,
+      projectId: activeProject.id,
+      roleName: activeProject.roleName,
+      registeredVia: method,
+    };
 
-    setSubmitting(true);
+    if (method === "google") {
+      payload.googleName = `Алексей Иванов (${randId})`;
+      payload.googleEmail = mockEmail;
+      payload.googleAvatar = `https://api.dicebear.com/7.x/adventurer/svg?seed=alexey_${randId}`;
+    } else {
+      payload.telegramId = `123${randId}90`;
+      payload.telegramFirstName = "Алексей";
+      payload.telegramLastName = "Иванов";
+      payload.telegramAvatar = `https://api.dicebear.com/7.x/identicon/svg?seed=tg_${randId}`;
+      payload.telegramUsername = `tg_alex_${randId}`;
+    }
+
     try {
       const res = await fetch("/api/candidates", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          name: candName,
-          email: candEmail,
-          telegramUsername: candTg || "",
-          projectId: selectedVacancy.id,
-          roleName: selectedVacancy.roleName,
-          registeredVia: authMethod || "google"
-        })
+        body: JSON.stringify(payload)
       });
 
       if (res.ok) {
         const candidateInfo = await res.json();
         localStorage.setItem("cand_session_id", candidateInfo.id);
         localStorage.setItem("cand_role", "candidate");
-        
+
         setRegistrationSuccess(true);
         setTimeout(() => {
           setRegistrationSuccess(false);
           setShowApplyModal(false);
-          navigate("/candidate");
-        }, 1800);
+          setSubmitting(false);
+          
+          // As requested, always land candidate on /{companySlug}/{id}/candidateXXXXXX/profile
+          navigate(`/${activeProject.companySlug || "ooo-roborekrut-inzhiniring"}/${activeProject.id}/${candidateInfo.id}/profile`);
+        }, 1500);
+      } else {
+        setSubmitting(false);
       }
     } catch (err) {
-      console.error("Error creating candidate:", err);
-    } finally {
+      console.error("Error creating candidate in one click:", err);
       setSubmitting(false);
     }
+  };
+
+  const handleApplyOnboarding = async (e: React.FormEvent) => {
+    e.preventDefault();
   };
 
   // Format dynamic raw content helper
@@ -315,7 +333,7 @@ export default function CompanyLanding() {
         <div className="max-w-7xl mx-auto w-full px-4 md:px-8">
           <div className="flex items-center justify-between gap-4 py-2">
             {/* Logo field */}
-            <div className="flex items-center gap-3 cursor-pointer shrink-0" onClick={() => navigate("/")}>
+            <div className="flex items-center gap-3 cursor-pointer shrink-0" onClick={() => navigate(selectedVacancy ? `/${companySlug}/${selectedVacancy.id}` : "/")}>
               <img
                 src={selectedVacancy?.logoUrl || "https://i.ibb.co/WWRbtPq0/RR-Logo.png"}
                 alt="Logo"
@@ -349,7 +367,10 @@ export default function CompanyLanding() {
             {/* Right block: login button on desktop, hamburger on mobile */}
             <div className="flex items-center gap-2 shrink-0">
               <button
-                onClick={() => navigate("/employer")}
+                onClick={() => {
+                  setIsLoginOnly(true);
+                  setShowApplyModal(true);
+                }}
                 className="hidden md:block cursor-pointer bg-[#E7C768] text-[#112335] text-xs font-black px-4 py-2 rounded-xl hover:bg-[#F4EE8E] transition shadow-md whitespace-nowrap"
               >
                 Войти 🔑
@@ -392,11 +413,12 @@ export default function CompanyLanding() {
                 })}
               </div>
 
-              <div className="pt-2 border-t border-white/5">
+              <div className="pt-2 border-t border-white/5 font-sans">
                 <button
                   onClick={() => {
                     setMenuOpen(false);
-                    navigate("/employer");
+                    setIsLoginOnly(true);
+                    setShowApplyModal(true);
                   }}
                   className="w-full cursor-pointer bg-[#E7C768] text-[#112335] text-xs font-black py-2.5 rounded-xl hover:bg-[#F4EE8E] transition shadow-md text-center block"
                 >
@@ -634,110 +656,60 @@ export default function CompanyLanding() {
             ) : (
               <>
                 <div className="text-center space-y-1">
-                  <h3 className="text-xl font-black text-[#E7C768]">Начать Блиц-Собеседование</h3>
+                  <h3 className="text-xl font-black text-[#E7C768]">
+                    {isLoginOnly ? "Вход в Кабинет Кандидата" : "Начать Блиц-Собеседование"}
+                  </h3>
                   <p className="text-xs text-slate-300">
-                    Выберите удобный сервис в 1 клик для авторизации и мгновенной связи с работодателем.
+                    {isLoginOnly 
+                      ? "Авторизуйтесь в 1 клик для входа в свой персональный кабинет соискателя."
+                      : "Выберите удобный сервис в 1 клик для авторизации и мгновенной связи с работодателем."}
                   </p>
                 </div>
 
                 {/* 1-Click Action triggers as requested by user! */}
-                <div className="grid grid-cols-2 gap-3 pt-2">
-                  <button
-                    type="button"
-                    onClick={() => triggerOneClickRegister("telegram")}
-                    className={`cursor-pointer border py-3.5 px-2 rounded-2xl flex flex-col items-center justify-center gap-1.5 transition ${
-                      authMethod === "telegram"
-                        ? "bg-slate-900 border-[#E7C768]"
-                        : "bg-black/35 border-white/5 hover:border-white/10"
-                    }`}
-                  >
-                    <svg className="w-6 h-6 text-sky-400 fill-current" viewBox="0 0 24 24">
-                      <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm4.64 6.8c-.15 1.58-.8 5.42-1.13 7.19-.14.75-.42 1-.68 1.03-.58.05-1.02-.38-1.58-.75-.88-.58-1.38-.94-2.23-1.5-.99-.65-.35-1.01.22-1.59.15-.15 2.71-2.48 2.76-2.69.01-.03-.01-.14-.07-.19s-.16-.03-.22-.01c-.1.02-1.63 1.03-4.6 3.04-.44.3-.83.45-1.18.44-.39-.01-1.13-.22-1.68-.4-.68-.22-1.22-.34-1.17-.72.03-.2.3-.41.81-.62 3.17-1.38 5.28-2.29 6.34-2.73 3.01-1.26 3.63-1.48 4.04-1.48.09 0 .29.02.42.13.11.08.14.21.15.3l-.01.12z" />
-                    </svg>
-                    <span className="text-[11px] font-bold">Войти в 1 клик через Tg</span>
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={() => triggerOneClickRegister("google")}
-                    className={`cursor-pointer border py-3.5 px-2 rounded-2xl flex flex-col items-center justify-center gap-1.5 transition ${
-                      authMethod === "google"
-                        ? "bg-slate-900 border-[#E7C768]"
-                        : "bg-black/35 border-white/5 hover:border-white/10"
-                    }`}
-                  >
-                    <svg className="w-5 h-5 text-red-400 fill-current" viewBox="0 0 24 24">
-                      <path d="M12.24 10.285V13.4h6.887c-.275 1.565-1.88 4.604-6.887 4.604-4.33 0-7.866-3.577-7.866-8s3.536-8 7.866-8c2.46 0 4.105 1.025 5.047 1.926l2.427-2.334C17.955 1.514 15.34 0 12.24 0 5.58 0 0 5.37 0 12s5.58 12 12.24 12c6.96 0 11.57-4.89 11.57-11.79 0-.795-.085-1.4-.195-1.925H12.24z" />
-                    </svg>
-                    <span className="text-[11px] font-bold">Войти в 1 клик через Google</span>
-                  </button>
-                </div>
-
-                {/* Reminder note strictly matching user prompt requirements */}
-                <div className="bg-sky-500/10 border border-sky-500/25 p-3 rounded-2xl space-y-1.5 text-xs text-sky-200">
-                  <div className="flex items-center gap-1.5 font-bold">
-                    <AlertCircle className="w-4 h-4 text-sky-400" />
-                    <span>Автоматические напоминания</span>
+                {submitting ? (
+                  <div className="flex flex-col items-center justify-center py-10 space-y-3">
+                    <Loader className="w-8 h-8 text-[#E7C768] animate-spin animate-infinite" />
+                    <span className="text-xs text-slate-300 font-medium">Связываемся с базой ИИ-собеседований...</span>
                   </div>
-                  <p className="text-[11px] leading-relaxed">
-                    🎓 <strong>Обратите внимание!</strong> При регистрации через <strong>Telegram</strong> мы будем присылать вам напоминания в чат-бота, чтобы вы не забывали проходить этапы онбординга или лекции с пользой!
-                  </p>
-                </div>
+                ) : (
+                  <>
+                    <div className="grid grid-cols-2 gap-3 pt-2">
+                      <button
+                        type="button"
+                        onClick={() => triggerOneClickRegister("telegram")}
+                        className="cursor-pointer border py-3.5 px-2 bg-black/35 border-white/5 hover:border-[#E7C768] rounded-2xl flex flex-col items-center justify-center gap-1.5 transition hover:bg-slate-900"
+                      >
+                        <svg className="w-6 h-6 text-sky-400 fill-current" viewBox="0 0 24 24">
+                          <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm4.64 6.8c-.15 1.58-.8 5.42-1.13 7.19-.14.75-.42 1-.68 1.03-.58.05-1.02-.38-1.58-.75-.88-.58-1.38-.94-2.23-1.5-.99-.65-.35-1.01.22-1.59.15-.15 2.71-2.48 2.76-2.69.01-.03-.01-.14-.07-.19s-.16-.03-.22-.01c-.1.02-1.63 1.03-4.6 3.04-.44.3-.83.45-1.18.44-.39-.01-1.13-.22-1.68-.4-.68-.22-1.22-.34-1.17-.72.03-.2.3-.41.81-.62 3.17-1.38 5.28-2.29 6.34-2.73 3.01-1.26 3.63-1.48 4.04-1.48.09 0 .29.02.42.13.11.08.14.21.15.3l-.01.12z" />
+                        </svg>
+                        <span className="text-[11px] font-bold">Войти в 1 клик через Tg</span>
+                      </button>
 
-                <form onSubmit={handleApplyOnboarding} className="space-y-3 pt-1">
-                  <div className="grid grid-cols-2 gap-2 text-xs">
-                    <div>
-                      <label className="text-[10px] text-slate-400 block mb-1">Имя соискателя</label>
-                      <input
-                        type="text"
-                        required
-                        className="w-full bg-[#112335] border border-white/10 p-2 rounded-lg text-white font-semibold text-xs"
-                        value={candName}
-                        onChange={(e) => setCandName(e.target.value)}
-                      />
+                      <button
+                        type="button"
+                        onClick={() => triggerOneClickRegister("google")}
+                        className="cursor-pointer border py-3.5 px-2 bg-black/35 border-white/5 hover:border-[#E7C768] rounded-2xl flex flex-col items-center justify-center gap-1.5 transition hover:bg-slate-900"
+                      >
+                        <svg className="w-5 h-5 text-red-400 fill-current" viewBox="0 0 24 24">
+                          <path d="M12.24 10.285V13.4h6.887c-.275 1.565-1.88 4.604-6.887 4.604-4.33 0-7.866-3.577-7.866-8s3.536-8 7.866-8c2.46 0 4.105 1.025 5.047 1.926l2.427-2.334C17.955 1.514 15.34 0 12.24 0 5.58 0 0 5.37 0 12s5.58 12 12.24 12c6.96 0 11.57-4.89 11.57-11.79 0-.795-.085-1.4-.195-1.925H12.24z" />
+                        </svg>
+                        <span className="text-[11px] font-bold">Войти в 1 клик через Google</span>
+                      </button>
                     </div>
-                    <div>
-                      <label className="text-[10px] text-slate-400 block mb-1">Email</label>
-                      <input
-                        type="email"
-                        required
-                        className="w-full bg-[#112335] border border-white/10 p-2 rounded-lg text-white font-semibold text-xs"
-                        value={candEmail}
-                        onChange={(e) => setCandEmail(e.target.value)}
-                      />
-                    </div>
-                  </div>
 
-                  {authMethod === "telegram" && (
-                    <div>
-                      <label className="text-[10px] text-slate-400 block mb-1">Ваш @telegram_username</label>
-                      <input
-                        type="text"
-                        required
-                        className="w-full bg-[#112335] border border-white/10 p-2 rounded-lg text-white font-semibold text-xs"
-                        placeholder="t_username"
-                        value={candTg}
-                        onChange={(e) => setCandTg(e.target.value)}
-                      />
+                    {/* Reminder note strictly matching user prompt requirements */}
+                    <div className="bg-sky-500/10 border border-sky-500/25 p-3 rounded-2xl space-y-1.5 text-xs text-sky-200">
+                      <div className="flex items-center gap-1.5 font-bold">
+                        <AlertCircle className="w-4 h-4 text-sky-400" />
+                        <span>Автоматические напоминания</span>
+                      </div>
+                      <p className="text-[11px] leading-relaxed">
+                        🎓 <strong>Обратите внимание!</strong> При регистрации через <strong>Telegram</strong> мы будем присылать вам напоминания в чат-бота, чтобы вы не забывали проходить этапы онбординга или лекции с пользой!
+                      </p>
                     </div>
-                  )}
-
-                  <button
-                    type="submit"
-                    disabled={submitting}
-                    className="cursor-pointer w-full bg-gradient-to-r from-red-600 to-amber-600 text-white font-bold py-3 rounded-xl hover:shadow-lg transition flex items-center justify-center gap-2 mt-4"
-                  >
-                    {submitting ? (
-                      <>
-                        <Loader className="w-4 h-4 animate-spin" /> Авторизация...
-                      </>
-                    ) : (
-                      <>
-                        Запустить Робота Отбора <ChevronRight className="w-4.5 h-4.5" />
-                      </>
-                    )}
-                  </button>
-                </form>
+                  </>
+                )}
               </>
             )}
 

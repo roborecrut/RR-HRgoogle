@@ -15,7 +15,10 @@ import CompanyLanding from "./pages/CompanyLanding";
 function AppContent() {
   const { path } = useRouter();
 
-  if (path.startsWith("/candidate")) {
+  const segments = path.split("/").filter(Boolean);
+  const isCandidateUrl = path.startsWith("/candidate") || segments.some(s => s.toLowerCase().startsWith("candidate") || s.toLowerCase().startsWith("cand"));
+
+  if (isCandidateUrl) {
     return <CandidateFlow />;
   }
 
@@ -23,7 +26,6 @@ function AppContent() {
     return <EmployerPanel />;
   }
 
-  const segments = path.split("/").filter(Boolean);
   const reserved = ["main", "vacancy", "admin", "job", "auth", "setup", "candidate", "employer"];
   if (segments.length > 0 && !reserved.includes(segments[0])) {
     return <CompanyLanding />;

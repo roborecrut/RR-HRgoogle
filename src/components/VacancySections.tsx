@@ -23,17 +23,51 @@ export const VacancyView: React.FC<SectionProps> = ({ project, onChangeText, isE
   // Parse lines
   const lines = text.split("\n").map(l => l.replace(/^[•\s-*]+/, "").trim()).filter(Boolean);
   const tasks = lines.slice(0, Math.ceil(lines.length / 2));
-  const requirements = lines.slice(Math.ceil(lines.length / 2));
+  const requirements = lines.slice(Math.ceil(lines.length / 1.8));
 
-  // Interactive micro-task simulator
-  const sampleTasksSim = [
-    { title: "📞 Консультация", desc: "Клиент интересуется возможностью автоматизации рекламы. Ваша задача - открыть Wiki и направить ссылку на тариф." },
-    { title: "📝 Ведение CRM", desc: "Добавить краткую заметку по итогам звонка. Например: 'Интерес подтвержден, ждет ссылку на оплату'." },
-    { title: "🤝 Решение возражения", desc: "Если клиент говорит 'Дорого', объяснить ценность окупаемости ИИ-сервисов за первый месяц работы." }
-  ];
+  // Dynamic Activity Tabs parser
+  const activityText = project.tasksActivityText || "• [📞 Консультация] Клиент интересуется возможностью автоматизации рекламы. Ваша задача - открыть Wiki и направить ссылку на тариф.\n• [📝 Ведение CRM] Добавить краткую заметку по итогам звонка. Например: 'Интерес подтвержден, ждет ссылку на оплату'.\n• [🤝 Возражения] Если клиент говорит 'Дорого', объяснить ценность окупаемости ИИ-сервисов за первый месяц работы.";
+  const activityLines = activityText.split("\n").map(l => l.replace(/^[•\s-*]+/, "").trim()).filter(Boolean);
+
+  const parsedActivities = activityLines.map((l, idx) => {
+    const match = l.match(/^\[(.*?)\]\s*(.*)$/);
+    if (match) {
+      return {
+        title: match[1],
+        desc: match[2]
+      };
+    }
+    const defaultActivities = [
+      { title: "📞 Консультация", desc: l },
+      { title: "📝 Ведение CRM", desc: l },
+      { title: "🤝 Возражения", desc: l }
+    ];
+    return defaultActivities[idx % defaultActivities.length] || { title: `Задача ${idx + 1}`, desc: l };
+  });
+
+  const activeActivity = parsedActivities[activeTaskIndex] || parsedActivities[0] || { title: "Задача", desc: "Описание настраивается..." };
 
   return (
     <div className="space-y-6">
+      {isEditable && (
+        <div className="space-y-3 bg-[#12283C]/80 border border-white/5 rounded-2xl p-4 text-left">
+          <div className="flex justify-between items-center">
+            <label className="text-xs font-bold text-amber-300 block">Раздел &quot;Чем вы будете заниматься&quot; (Табы и содержание):</label>
+            <span className="text-[10px] text-slate-400">Формат: [Название Таба] Описание задачи</span>
+          </div>
+          <textarea
+            className="w-full bg-[#112335]/90 text-xs p-3 rounded-xl border border-white/10 text-white font-mono focus:outline-[#E7C768]"
+            rows={5}
+            value={activityText}
+            onChange={(e) => onChangeText?.("tasksActivityText", e.target.value)}
+            placeholder="Каждая вкладка с новой строки в формате: [Вкладка] Описание"
+          />
+          <div className="text-[10px] text-slate-350 bg-white/5 p-2 rounded-xl border border-white/5 font-sans leading-relaxed">
+            💡 Напишите <strong>[📞 Консультация] Описание задачи</strong> для кастомизации табов в режиме превью.
+          </div>
+        </div>
+      )}
+
       {/* Dynamic Grid Layout */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
         
@@ -55,7 +89,7 @@ export const VacancyView: React.FC<SectionProps> = ({ project, onChangeText, isE
               placeholder="Каждая строка с новой строки"
             />
           ) : (
-            <div className="space-y-3">
+            <div className="space-y-3 text-left">
               {tasks.map((task, idx) => (
                 <div key={idx} className="flex items-start gap-2.5 text-xs text-slate-200">
                   <span className="w-5 h-5 rounded-full bg-emerald-500/20 text-emerald-400 flex items-center justify-center shrink-0 text-[10px] font-bold">
@@ -79,9 +113,9 @@ export const VacancyView: React.FC<SectionProps> = ({ project, onChangeText, isE
           </div>
 
           {isEditable ? (
-            <p className="text-[10px] text-slate-400 italic">Редактируется в поле слева, разбивается автоматически по строкам для визуализации требований.</p>
+            <p className="text-[10px] text-slate-400 italic text-left">Редактируется в поле слева в общей форме, разбивается автоматически по строкам для визуализации требований.</p>
           ) : (
-            <div className="space-y-3">
+            <div className="space-y-3 text-left">
               {requirements.map((req, idx) => (
                 <div key={idx} className="flex items-start gap-2.5 text-xs text-slate-200">
                   <CheckCircle2 className="w-4 h-4 text-amber-400 shrink-0 mt-0.5" />
@@ -100,33 +134,36 @@ export const VacancyView: React.FC<SectionProps> = ({ project, onChangeText, isE
 
       </div>
 
-      {/* Interactive Interactive Task Simulator Section */}
-      <div className="bg-black/20 border border-white/5 rounded-2xl p-4 sm:p-5 text-left">
-        <h4 className="text-xs font-mono uppercase tracking-wider text-[#E7C768] mb-3 flex items-center gap-1.5">
-          <Eye className="w-3.5 h-3.5 animate-pulse" /> Симуляция задач: Чем вы будете заниматься?
-        </h4>
-        <div className="grid grid-cols-3 gap-2 mb-3">
-          {sampleTasksSim.map((t, idx) => (
-            <button
-              key={idx}
-              onClick={() => setActiveTaskIndex(idx)}
-              className={`transition text-[10px] sm:text-xs font-bold p-2.5 rounded-xl border text-center cursor-pointer ${
-                activeTaskIndex === idx 
-                  ? "bg-[#E7C768] text-[#112335] border-[#E7C768]" 
-                  : "bg-[#112335]/70 text-slate-300 border-white/5 hover:bg-white/5"
-              }`}
-            >
-              {t.title}
-            </button>
-          ))}
-        </div>
-        <div className="bg-[#112335] border border-[#E7C768]/10 p-3.5 rounded-xl">
-          <p className="text-xs text-slate-300 leading-relaxed font-sans">{sampleTasksSim[activeTaskIndex].desc}</p>
-          <div className="mt-3 flex items-center gap-1 text-[10px] text-emerald-400 font-mono font-bold">
-            <CheckCircle2 className="w-3.5 h-3.5 inline" /> Все необходимые инструкции будут доступны в Wiki на ИИ-собеседовании!
+      {/* Interactive Activity Tab System */}
+      {parsedActivities.length > 0 && (
+        <div className="bg-black/20 border border-white/5 rounded-2xl p-4 sm:p-5 text-left">
+          <h4 className="text-xs font-mono uppercase tracking-wider text-[#E7C768] mb-3 flex items-center gap-1.5 font-bold">
+            <Eye className="w-3.5 h-3.5 animate-pulse text-[#E7C768]" /> Чем вы будете Заниматься: Ежедневный процесс
+          </h4>
+          <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 mb-3">
+            {parsedActivities.map((t, idx) => (
+              <button
+                key={idx}
+                type="button"
+                onClick={() => setActiveTaskIndex(idx)}
+                className={`transition text-[10px] sm:text-xs font-bold p-2.5 rounded-xl border text-center cursor-pointer ${
+                  activeTaskIndex === idx 
+                    ? "bg-[#E7C768] text-[#112335] border-[#E7C768] shadow-md" 
+                    : "bg-[#112335]/70 text-slate-300 border-white/5 hover:bg-white/5"
+                }`}
+              >
+                {t.title}
+              </button>
+            ))}
+          </div>
+          <div className="bg-[#112335] border border-[#E7C768]/10 p-3.5 rounded-xl block min-h-[50px]">
+            <p className="text-xs text-slate-350 leading-relaxed font-sans">{activeActivity.desc}</p>
+            <div className="mt-3 flex items-center gap-1 text-[10px] text-[#E7C768] font-mono font-bold">
+              <CheckCircle2 className="w-3.5 h-3.5 inline text-emerald-400" /> Все необходимые регламенты и подсказки будут доступны в ИИ-Кабинете!
+            </div>
           </div>
         </div>
-      </div>
+      )}
     </div>
   );
 };
@@ -242,30 +279,51 @@ export const CompanyView: React.FC<SectionProps> = ({ project, onChangeText, isE
 // 4. 🚀 ONBOARDING VIEW
 // -------------------------------------------------------------
 export const OnboardingView: React.FC<SectionProps> = ({ project, onChangeText, isEditable }) => {
-  const text = project.onboardingText || "• Быстрое тестирование навыков через ИИ-Режим\n• Ознакомление с Wiki базой знаний\n• Первые симуляционные звонки с подсказками ИИ\n• Подписание договора (ГПХ или Самозанятость) за 1 день";
+  const text = project.onboardingText || "• [📝 Экспресс-тест] Быстрое тестирование навыков через ИИ-Режим\n• [📚 Изучение Wiki] Ознакомление с Wiki базой знаний\n• [🤖 ИИ-Разговор] Первые симуляционные звонки с подсказками ИИ\n• [✍️ Оформление] Подписание договора (ГПХ или Самозанятость) за 1 день";
   const steps = text.split("\n").map(l => l.replace(/^[•\s-*]+/, "").trim()).filter(Boolean);
 
   const [viewStep, setViewStep] = useState(0);
 
-  const defaultStepTitles = [
-    "📝 1. Экспресс-тест",
-    "📚 2. Изучение Wiki",
-    "🤖 3. ИИ-Разговор",
-    "✍️ 4. Оформление"
-  ];
+  const parsedSteps = steps.map((l, idx) => {
+    const match = l.match(/^\[(.*?)\]\s*(.*)$/);
+    if (match) {
+      return {
+        title: match[1],
+        desc: match[2]
+      };
+    }
+    const defaultTitles = [
+      "📝 Экспресс-тест",
+      "📚 Изучение Wiki",
+      "🤖 ИИ-Разговор",
+      "✍️ Оформление"
+    ];
+    return {
+      title: defaultTitles[idx] || `Шаг ${idx + 1}`,
+      desc: l
+    };
+  });
+
+  const activeStep = parsedSteps[viewStep] || parsedSteps[0] || { title: "Шаг", desc: "Сведения подгружаются..." };
 
   return (
     <div className="space-y-6">
       {isEditable ? (
         <div className="space-y-3 bg-[#12283C]/80 border border-white/5 rounded-2xl p-5">
-          <label className="text-xs font-bold text-amber-300 block">Этапы ввода в должность и оформления:</label>
+          <div className="flex justify-between items-center">
+            <label className="text-xs font-bold text-amber-300 block">Этапы ввода в должность и оформления:</label>
+            <span className="text-[10px] text-slate-400">Формат: [Заголовок] Описание</span>
+          </div>
           <textarea
             className="w-full bg-[#112335]/90 text-xs p-3 rounded-xl border border-white/10 text-white font-mono focus:outline-[#E7C768]"
-            rows={5}
+            rows={6}
             value={text}
             onChange={(e) => onChangeText?.("onboardingText", e.target.value)}
             placeholder="Каждый шаг с новой строки для отрисовки красивой интерактивного таймлайна"
           />
+          <div className="text-[10px] text-slate-350 bg-white/5 p-2 rounded-xl border border-white/5 font-sans">
+            💡 Напишите <strong>[📝 Экспресс-тест] Описание этапа</strong>, чтобы кастомизировать заголовки кнопок и табов.
+          </div>
         </div>
       ) : (
         <div className="space-y-5">
@@ -274,21 +332,24 @@ export const OnboardingView: React.FC<SectionProps> = ({ project, onChangeText, 
           </div>
 
           {/* Stepper Header Navigation */}
-          <div className="grid grid-cols-4 gap-1.5">
-            {defaultStepTitles.map((label, idx) => (
-              <button
-                key={idx}
-                onClick={() => setViewStep(idx)}
-                className={`transition p-2 rounded-xl text-center border font-bold text-[9px] sm:text-xs cursor-pointer ${
-                  viewStep === idx
-                    ? "bg-[#E7C768] text-[#112335] border-[#E7C768]"
-                    : "bg-[#112335]/40 text-slate-300 border-white/5 hover:bg-white/5"
-                }`}
-              >
-                {label.split(" .")[0]}
-              </button>
-            ))}
-          </div>
+          {parsedSteps.length > 0 && (
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-1.5">
+              {parsedSteps.map((s, idx) => (
+                <button
+                  key={idx}
+                  type="button"
+                  onClick={() => setViewStep(idx)}
+                  className={`transition p-2 rounded-xl text-center border font-bold text-[9px] sm:text-xs cursor-pointer ${
+                    viewStep === idx
+                      ? "bg-[#E7C768] text-[#112335] border-[#E7C768]"
+                      : "bg-[#112335]/40 text-slate-300 border-white/5 hover:bg-white/5"
+                  }`}
+                >
+                  {s.title}
+                </button>
+              ))}
+            </div>
+          )}
 
           {/* Stepper body display */}
           <div className="bg-[#12283C] p-4 sm:p-5 rounded-2xl border border-white/10 text-left relative overflow-hidden">
@@ -298,30 +359,32 @@ export const OnboardingView: React.FC<SectionProps> = ({ project, onChangeText, 
 
             <div className="space-y-2 relative z-10">
               <span className="text-[10px] font-mono text-amber-400 font-bold uppercase tracking-wider block">
-                {defaultStepTitles[viewStep]}
+                {activeStep.title}
               </span>
               <p className="text-xs text-white leading-relaxed font-sans font-medium">
-                {steps[viewStep] || "Информация по этапу в настоящий момент подгружается ИИ-координатором."}
+                {activeStep.desc}
               </p>
               <div className="mt-4 pt-3.5 border-t border-white/5 flex items-center justify-between">
                 <span className="text-[10px] text-emerald-400 font-mono font-bold flex items-center gap-1">
                   <ShieldCheck className="w-3.5 h-3.5" /> Вся процедура полностью автоматизирована
                 </span>
-                <span className="text-[10px] text-slate-400 leading-none">Шаг {viewStep + 1} из 4</span>
+                <span className="text-[10px] text-slate-400 leading-none">Шаг {viewStep + 1} из {parsedSteps.length}</span>
               </div>
             </div>
           </div>
 
           {/* Interactive Flow visual list */}
-          <div className="border border-white/5 rounded-xl bg-black/10 p-3 space-y-2">
+          <div className="border border-white/5 rounded-xl bg-black/10 p-3 space-y-2 text-left">
             <span className="text-[9px] text-[#E7C768] font-mono block">ПОЛНЫЙ ПУТЬ СОИСКАТЕЛЯ:</span>
             <div className="space-y-2.5">
-              {steps.map((st, idx) => (
+              {parsedSteps.map((st, idx) => (
                 <div key={idx} className="flex items-center gap-2.5 text-xs">
-                  <div className={`w-5 h-5 rounded-full flex items-center justify-center font-bold text-[10px] ${viewStep === idx ? "bg-[#E7C768] text-black" : "bg-white/15 text-white"}`}>
+                  <div className={`w-5 h-5 rounded-full flex items-center justify-center font-bold text-[10px] shrink-0 ${viewStep === idx ? "bg-[#E7C768] text-black" : "bg-white/15 text-white"}`}>
                     {idx + 1}
                   </div>
-                  <span className={`text-xs ${viewStep === idx ? "text-white font-bold" : "text-slate-400"}`}>{st}</span>
+                  <span className={`text-xs leading-relaxed ${viewStep === idx ? "text-white font-bold" : "text-slate-400"}`}>
+                    <strong className="text-[#E7C768]/80 font-mono text-[10px] mr-1">[{st.title}]</strong> {st.desc}
+                  </span>
                 </div>
               ))}
             </div>
@@ -424,7 +487,7 @@ export const ScheduleView: React.FC<SectionProps> = ({ project, onChangeText, is
 // 7. 👥 TEAM VIEW (MEET THE LECTURERS & MENTORS)
 // -------------------------------------------------------------
 export const TeamView: React.FC<SectionProps> = ({ project, onChangeText, isEditable }) => {
-  const text = project.teamText || "• Дмитрий - Тимлид команды. Автор продающих сценариев в Wiki.\n• Ольга - HR куратор. Сопровождает подписание ГПХ договоров.\n• Мария - Специфика обучения. Поможет войти в ритм ИИ-ассистента в первые часы.";
+  const text = project.teamText || "• [Отдел] Отдел телефонных продаж CRM\n• Дмитрий - Тимлид команды. Автор продающих сценариев в Wiki.\n• Ольга - HR куратор. Сопровождает подписание ГПХ договоров.\n• [Отдел] Отдел контроля качества\n• Мария - Специфика обучения. Поможет войти в ритм ИИ-ассистента в первые часы.";
   const lines = text.split("\n").map(l => l.replace(/^[•\s-*]+/, "").trim()).filter(Boolean);
 
   const defaultMentors = [
@@ -433,57 +496,96 @@ export const TeamView: React.FC<SectionProps> = ({ project, onChangeText, isEdit
     { title: "Мария", subtitle: "Обучение кадров", text: "Поможет сдать тестовый разговор в ИИ-режиме с первой попытки без лишнего стресса.", email: "maria-study@company.ru" }
   ];
 
-  const linesToRender = lines.map((l, idx) => {
-    // try to match "Name - Role. Description."
-    const dashIx = l.indexOf("-");
-    if (dashIx !== -1) {
-      const name = l.substring(0, dashIx).trim();
-      const rest = l.substring(dashIx + 1).trim();
-      const dotIx = rest.indexOf(".");
-      const role = dotIx !== -1 ? rest.substring(0, dotIx).trim() : "Куратор";
-      const desc = dotIx !== -1 ? rest.substring(dotIx + 1).trim() : rest;
-      return { title: name, subtitle: role, text: desc };
+  // Parse departments and employee lists
+  const parsedGroups: { department: string; members: { title: string; subtitle: string; text: string }[] }[] = [];
+  let currentDept = "Отдел адаптации соискателей";
+  let activeMembers: { title: string; subtitle: string; text: string }[] = [];
+
+  lines.forEach((l, idx) => {
+    const isDept = l.startsWith("[Отдел]") || l.startsWith("Отдел:") || l.startsWith("[Департамент]");
+    if (isDept) {
+      if (activeMembers.length > 0) {
+        parsedGroups.push({ department: currentDept, members: activeMembers });
+      }
+      currentDept = l.replace(/^(\[Отдел\]|Отдел:|\[Департамент\])\s*/i, "").trim();
+      activeMembers = [];
+    } else {
+      const dashIx = l.indexOf("-");
+      if (dashIx !== -1) {
+        const name = l.substring(0, dashIx).trim();
+        const rest = l.substring(dashIx + 1).trim();
+        const dotIx = rest.indexOf(".");
+        const role = dotIx !== -1 ? rest.substring(0, dotIx).trim() : "Куратор";
+        const desc = dotIx !== -1 ? rest.substring(dotIx + 1).trim() : rest;
+        activeMembers.push({ title: name, subtitle: role, text: desc });
+      } else {
+        const fallback = defaultMentors[idx % defaultMentors.length] || { title: "Сотрудник", subtitle: "Куратор новичков", text: l };
+        activeMembers.push({ title: fallback.title, subtitle: fallback.subtitle, text: l });
+      }
     }
-    return defaultMentors[idx] || { title: "Сотрудник", subtitle: "Опека новичков", text: l };
   });
+
+  if (activeMembers.length > 0 || parsedGroups.length === 0) {
+    parsedGroups.push({ department: currentDept, members: activeMembers });
+  }
 
   return (
     <div className="space-y-6">
       {isEditable ? (
         <div className="space-y-3 bg-[#12283C]/80 border border-white/5 rounded-2xl p-5">
-          <label className="text-xs font-bold text-amber-300 block">Команда адаптации соискателей:</label>
+          <div className="flex justify-between items-center">
+            <label className="text-xs font-bold text-amber-300 block">Команда адаптации соискателей по отделам:</label>
+            <span className="text-[10px] text-slate-400">Формат: [Отдел] Название ИЛИ Имя - Роль. Текст.</span>
+          </div>
           <textarea
             className="w-full bg-[#112335]/90 text-xs p-3 rounded-xl border border-white/10 text-white font-mono focus:outline-[#E7C768]"
-            rows={5}
+            rows={7}
             value={text}
             onChange={(e) => onChangeText?.("teamText", e.target.value)}
-            placeholder="Пишите кураторов в формате: Имя - Должность. Описание кураторства."
+            placeholder="[Отдел] Название отдела&#10;Имя - Должность. Описание сотрудника"
           />
+          <div className="text-[10px] text-slate-350 bg-white/5 p-2 rounded-xl border border-white/5 font-sans">
+            💡 Напишите <strong>[Отдел] Отдел продаж</strong>, чтобы разбить сотрудников на соответствующие подразделения.
+          </div>
         </div>
       ) : (
-        <div className="space-y-5">
-          <span className="text-[10px] font-mono text-slate-300 block uppercase tracking-widest text-left">👥 Ваши персональные наставники:</span>
+        <div className="space-y-6">
+          <span className="text-[10px] font-mono text-slate-300 block uppercase tracking-widest text-left">👥 Структура отделов и наставники компании:</span>
           
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3.5">
-            {linesToRender.map((m, i) => (
-              <div key={i} className="bg-gradient-to-b from-[#12283C] to-[#1A344D] border border-white/15 p-4 rounded-2xl text-left space-y-2.5 relative hover:border-amber-500/20 transition hover:shadow-lg">
-                <div className="flex items-center gap-2.5">
-                  <div className="w-10 h-10 rounded-full bg-[#E7C768]/10 text-[#E7C768] flex items-center justify-center font-bold text-sm border border-[#E7C768]/20 select-none">
-                    {m.title.slice(0, 2).toUpperCase()}
-                  </div>
-                  <div>
-                    <h5 className="text-xs font-black text-white">{m.title}</h5>
-                    <span className="text-[9px] text-amber-300 font-mono font-bold uppercase tracking-wider">{m.subtitle}</span>
-                  </div>
+          <div className="space-y-6">
+            {parsedGroups.map((group, groupIdx) => (
+              <div key={groupIdx} className="space-y-3.5 text-left">
+                <div className="flex items-center gap-2 border-b border-white/10 pb-2">
+                  <div className="w-1.5 h-3.5 bg-[#E7C768] rounded-full animate-pulse" />
+                  <h4 className="text-[11px] font-extrabold text-[#E7C768] uppercase tracking-wider">{group.department}</h4>
                 </div>
 
-                <p className="text-[11px] text-slate-300 leading-normal font-sans pt-1">
-                  &ldquo;{m.text}&rdquo;
-                </p>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  {group.members.map((m, i) => (
+                    <div key={i} className="bg-gradient-to-b from-[#12283C] to-[#1A344D] border border-white/15 p-4 rounded-2xl text-left space-y-2.5 relative hover:border-amber-500/20 transition hover:shadow-lg">
+                      <div className="flex items-center gap-2.5">
+                        <div className="w-10 h-10 rounded-full bg-[#E7C768]/10 text-[#E7C768] flex items-center justify-center font-bold text-sm border border-[#E7C768]/20 select-none">
+                          {m.title.slice(0, 2).toUpperCase()}
+                        </div>
+                        <div>
+                          <h5 className="text-xs font-black text-white">{m.title}</h5>
+                          <span className="text-[9px] text-amber-300 font-mono font-bold uppercase tracking-wider leading-none mt-0.5 block">{m.subtitle}</span>
+                        </div>
+                      </div>
 
-                <div className="pt-2 border-t border-white/5 flex items-center justify-between text-[9px] text-slate-400 font-mono">
-                  <span>Консультирует 24/7</span>
-                  <span className="text-emerald-400">В сети</span>
+                      <p className="text-[11px] text-slate-300 leading-normal font-sans pt-1">
+                        &ldquo;{m.text}&rdquo;
+                      </p>
+
+                      <div className="pt-2 border-t border-white/5 flex items-center justify-between text-[9px] text-slate-400 font-mono">
+                        <span>Консультирует 24/7</span>
+                        <span className="text-emerald-400">В сети</span>
+                      </div>
+                    </div>
+                  ))}
+                  {group.members.length === 0 && (
+                    <span className="text-slate-400 italic text-[11px]">В данном отделе кураторы не распределены.</span>
+                  )}
                 </div>
               </div>
             ))}
@@ -509,38 +611,67 @@ export const SystemView: React.FC<SectionProps> = ({ project, onChangeText, isEd
   const text = project.systemText || "• Ведение клиентской базы в amoCRM: своевременная смена этапов сделок, фиксация договоренностей и внесение комментариев.\n• Google Таблицы: ежедневное заполнение оперативной отчетности, учет звонков и ведение реестра договоров.\n• IP-Телефония: звонки клиентам осуществляются в один клик прямо из карточки сделки в amoCRM.\n• Четкие диалоговые регламенты: использование интерактивной Wiki для быстрой отработки сложных вопросов клиентов.\n• Координация в рабочих чатах: ежедневный разбор сложных кейсов с личным наставником.";
   const criteria = text.split("\n").map(l => l.replace(/^[•\s-*]+/, "").trim()).filter(Boolean);
 
-  const [activeSystemTab, setActiveSystemTab] = useState<"crm" | "sheets" | "phone">("crm");
+  const rawCabinetText = project.cabinetTabsText || "• [💻 Панель amoCRM] Вся база клиентов находится в структурированной воронке продаж. При звонке карточка открывается автоматически. Вам нужно зафиксировать этап сделки (например, 'Квалифицирован', 'Отправлено КП' или 'Отказ') и написать краткий комментарий по звонку. Система автоматически напомнит о следующем контакте. | 💡 Регламент: Любое изменение статуса контрагента должно сопровождаться комментарием не менее 4-х слов.\n• [📊 Google Таблицы] Форма ежедневного планового зачета звонков и выполненных задач. Сюда заносится количество совершенных эффективных контактов за смену, отправленные коммерческие предложения и планируемые сделки на завтра. | 💡 Ежедневная отчетность должна заполняться до 20:30 МСК текущего рабочего дня.\n• [📞 IP-Телефония] Набор номеров клиентов происходит прямо со встроенного софтфона в один клик. Нет необходимости вводить номера вручную. Все разговоры автоматически записываются и архивируются. | 💡 Требуется гарнитура с шумоподавлением и стабильное интернет-соединение.";
+  const cabinetLines = rawCabinetText.split("\n").map(l => l.replace(/^[•\s-*]+/, "").trim()).filter(Boolean);
 
-  const systemDetails = {
-    crm: {
-      title: "💻 Панель amoCRM",
-      desc: "Вся база клиентов находится в структурированной воронке продаж. При звонке карточка открывается автоматически. Вам нужно зафиксировать этап сделки (например, 'Квалифицирован', 'Отправлено КП' или 'Отказ') и написать краткий комментарий по звонку. Система автоматически напомнит о следующем контакте.",
-      tip: "💡 Регламент: Любое изменение статуса контрагента должно сопровождаться комментарием не менее 4-х слов."
-    },
-    sheets: {
-      title: "📊 Google Таблицы (Отчетность)",
-      desc: "Форма ежедневного планового зачета звонков и выполненных задач. Сюда заносится количество совершенных эффективных контактов за смену, отправленные коммерческие предложения и планируемые сделки на завтра. По этим таблицам искусственный интеллект и личные тимлиды проводят сверку показателей KPI и начисляют бонусы.",
-      tip: "💡 Ежедневная отчетность должна заполняться до 20:30 МСК текущего рабочего дня."
-    },
-    phone: {
-      title: "📞 IP-Телефония (Запись & Набор)",
-      desc: "Набор номеров клиентов происходит прямо со встроенного софтфона в один клик. Нет необходимости вводить номера вручную. Все разговоры автоматически записываются и архивируются, чтобы вы и ваш наставник могли легко прослушать их, разобрать ошибки и скорректировать манеру ведения диалога.",
-      tip: "💡 Для качественной работы требуется гарнитура с шумоподавлением и стабильное интернет-соединение."
+  const parsedCabinetTabs = cabinetLines.map((l, idx) => {
+    const match = l.match(/^\[(.*?)\]\s*(.*)$/);
+    let title = "";
+    let rest = l;
+    if (match) {
+      title = match[1];
+      rest = match[2];
+    } else {
+      const defaultTitles = ["💻 amoCRM", "📊 Google Таблицы", "📞 IP-Телефония"];
+      title = defaultTitles[idx] || `Платформа ${idx + 1}`;
     }
-  };
+
+    const parts = rest.split("|");
+    const desc = parts[0] ? parts[0].trim() : "";
+    const tip = parts[1] ? parts[1].trim() : "💡 Автоматическая синхронизация регламентов.";
+
+    return {
+      id: `tab_${idx}`,
+      title,
+      desc,
+      tip
+    };
+  });
+
+  const [activeSystemIndex, setActiveSystemIndex] = useState(0);
+  const activeTab = parsedCabinetTabs[activeSystemIndex] || parsedCabinetTabs[0] || { title: "Панель", desc: "Набор регламентов", tip: "💡 Правила регламентов." };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 text-left">
       {isEditable ? (
-        <div className="space-y-3 bg-[#12283C]/80 border border-white/5 rounded-2xl p-5">
-          <label className="text-xs font-bold text-amber-300 block">Регламент и рабочие инструменты системы:</label>
-          <textarea
-            className="w-full bg-[#112335]/90 text-xs p-3 rounded-xl border border-white/10 text-white font-mono focus:outline-[#E7C768]"
-            rows={6}
-            value={text}
-            onChange={(e) => onChangeText?.("systemText", e.target.value)}
-            placeholder="Опишите регламент ежедневной работы и использования CRM, Google таблиц и телефонии по одной строке на пункт"
-          />
+        <div className="space-y-4 bg-[#12283C]/80 border border-white/5 rounded-2xl p-5">
+          <div className="space-y-2">
+            <div className="flex justify-between items-center">
+              <label className="text-xs font-bold text-amber-300 block">Интерактивный кабинет: Вкладки рабочих платформ:</label>
+              <span className="text-[10px] text-slate-400">Формат: [Таб] Описание | Секретный совет</span>
+            </div>
+            <textarea
+              className="w-full bg-[#112335]/90 text-xs p-3 rounded-xl border border-white/10 text-white font-mono focus:outline-[#E7C768]"
+              rows={7}
+              value={rawCabinetText}
+              onChange={(e) => onChangeText?.("cabinetTabsText", e.target.value)}
+              placeholder="Каждая вкладка с новой строки"
+            />
+          </div>
+
+          <div className="pt-2 border-t border-white/5 space-y-2">
+            <label className="text-xs font-bold text-amber-300 block">Ежедневная система регламентов и чек-лист отчетности (список):</label>
+            <textarea
+              className="w-full bg-[#112335]/90 text-xs p-3 rounded-xl border border-white/10 text-white font-mono focus:outline-[#E7C768]"
+              rows={5}
+              value={text}
+              onChange={(e) => onChangeText?.("systemText", e.target.value)}
+              placeholder="Опишите регламент ежедневной работы по одной строке на пункт"
+            />
+          </div>
+          <div className="text-[10px] text-slate-350 bg-white/5 p-2 rounded-xl border border-white/5 font-sans leading-relaxed">
+            💡 Кастомизируйте вкладки разделяя девиз символом <strong>|</strong>, например: <code>[💻 amoCRM] Описание таба | 💡 Подсказка-регламент</code>
+          </div>
         </div>
       ) : (
         <div className="space-y-5">
@@ -556,36 +687,40 @@ export const SystemView: React.FC<SectionProps> = ({ project, onChangeText, isEd
             </div>
 
             {/* Platform selection tabs */}
-            <div className="grid grid-cols-3 gap-2">
-              {(Object.keys(systemDetails) as Array<keyof typeof systemDetails>).map((tabKey) => {
-                const isActive = activeSystemTab === tabKey;
-                return (
-                  <button
-                    key={tabKey}
-                    type="button"
-                    onClick={() => setActiveSystemTab(tabKey)}
-                    className={`transition text-[10px] sm:text-xs font-bold p-2 rounded-xl border text-center cursor-pointer whitespace-nowrap ${
-                      isActive 
-                        ? "bg-[#E7C768] text-[#112335] border-[#E7C768] shadow-md" 
-                        : "bg-[#112335]/70 text-slate-300 border-white/5 hover:bg-white/5"
-                    }`}
-                  >
-                    {systemDetails[tabKey].title.split(" (")[0]}
-                  </button>
-                );
-              })}
-            </div>
+            {parsedCabinetTabs.length > 0 && (
+              <div className="grid grid-cols-3 gap-2">
+                {parsedCabinetTabs.map((tab, idx) => {
+                  const isActive = activeSystemIndex === idx;
+                  return (
+                    <button
+                      key={tab.id}
+                      type="button"
+                      onClick={() => setActiveSystemIndex(idx)}
+                      className={`transition text-[10px] sm:text-xs font-bold p-2 rounded-xl border text-center cursor-pointer whitespace-nowrap overflow-hidden text-ellipsis ${
+                        isActive 
+                          ? "bg-[#E7C768] text-[#112335] border-[#E7C768] shadow-md" 
+                          : "bg-[#112335]/70 text-slate-300 border-white/5 hover:bg-white/5"
+                      }`}
+                    >
+                      {tab.title}
+                    </button>
+                  );
+                })}
+              </div>
+            )}
 
             {/* Platform workflow description block */}
-            <div className="bg-[#112335] border border-[#E7C768]/15 p-4 rounded-xl space-y-2.5">
-              <span className="text-[10px] font-mono text-amber-400 font-bold uppercase tracking-widest block">
-                {systemDetails[activeSystemTab].title}
-              </span>
-              <p className="text-xs text-slate-200 leading-relaxed font-sans">
-                {systemDetails[activeSystemTab].desc}
-              </p>
-              <div className="text-[10px] bg-amber-500/10 border border-amber-500/20 p-2 rounded-lg text-amber-300 font-mono font-medium leading-tight">
-                {systemDetails[activeSystemTab].tip}
+            <div className="bg-[#112335] border border-[#E7C768]/15 p-4 rounded-xl space-y-2.5 min-h-[140px] flex flex-col justify-between">
+              <div className="space-y-2">
+                <span className="text-[10px] font-mono text-amber-400 font-bold uppercase tracking-widest block">
+                  {activeTab.title}
+                </span>
+                <p className="text-xs text-slate-200 leading-relaxed font-sans">
+                  {activeTab.desc}
+                </p>
+              </div>
+              <div className="text-[10px] bg-amber-500/10 border border-amber-500/20 p-2 rounded-lg text-amber-300 font-mono font-medium leading-tight mt-2.5">
+                {activeTab.tip}
               </div>
             </div>
           </div>
