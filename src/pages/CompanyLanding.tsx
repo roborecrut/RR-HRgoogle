@@ -6,6 +6,7 @@
 import React, { useState, useEffect, useRef } from "react";
 import { useRouter } from "../components/RouterContext";
 import Mascot from "../components/Mascot";
+import Markdown from "react-markdown";
 import { JobProject, Message } from "../types";
 import {
   Briefcase,
@@ -749,13 +750,15 @@ export default function CompanyLanding() {
               >
                 <span className="text-[9px] text-slate-400 mb-1 px-1">{m.timestamp}</span>
                 <div
-                  className={`p-3 rounded-2xl whitespace-pre-line leading-relaxed ${
+                  className={`p-3 rounded-2xl leading-relaxed ${
                     m.sender === "candidate"
                       ? "bg-gradient-to-r from-red-600 to-amber-600 text-white rounded-tr-none"
                       : "bg-[#112335] text-slate-200 rounded-tl-none border border-white/5"
                   }`}
                 >
-                  {m.text}
+                  <div className="markdown-body">
+                    <Markdown>{m.text}</Markdown>
+                  </div>
                 </div>
               </div>
             ))}

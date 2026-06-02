@@ -6,6 +6,7 @@
 import React, { useState, useEffect } from "react";
 import { useRouter } from "../components/RouterContext";
 import Mascot from "../components/Mascot";
+import EmployerAIAssistant from "../components/EmployerAIAssistant";
 import { JobProject, Candidate, BASIC_SPECIALTIES } from "../types";
 import {
   Users,
@@ -175,10 +176,165 @@ export default function EmployerPanel() {
   const [newCompanyFiles, setNewCompanyFiles] = useState("");
   const [isParsingFile, setIsParsingFile] = useState(false);
 
+  // New Brand fields requested by end-user:
+  const [newCompanyMissionText, setNewCompanyMissionText] = useState("");
+  const [newCompanyCustomWiki, setNewCompanyCustomWiki] = useState("");
+  const [newCompanySalaryTerms, setNewCompanySalaryTerms] = useState("");
+  const [newCompanyScheduleTerms, setNewCompanyScheduleTerms] = useState("");
+  const [newCompanyStatsValClients, setNewCompanyStatsValClients] = useState("");
+  const [newCompanyStatsLabelClients, setNewCompanyStatsLabelClients] = useState("");
+  const [newCompanyStatsValDialogs, setNewCompanyStatsValDialogs] = useState("");
+  const [newCompanyStatsLabelDialogs, setNewCompanyStatsLabelDialogs] = useState("");
+  const [newCompanyStatsValFounded, setNewCompanyStatsValFounded] = useState("");
+  const [newCompanyStatsLabelFounded, setNewCompanyStatsLabelFounded] = useState("");
+
+  const [enhancingFields, setEnhancingFields] = useState<Record<string, boolean>>({});
+  const [isEnhancingAll, setIsEnhancingAll] = useState(false);
+
+  const handleEnhanceSingleField = async (fieldName: string, currentVal: string) => {
+    setEnhancingFields(prev => ({ ...prev, [fieldName]: true }));
+    try {
+      const res = await fetch("/api/enhance-single-field", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          fieldName,
+          fieldVal: currentVal,
+          context: {
+            name: newCompanyName,
+            industry: newCompanyIndustry,
+            staff: newCompanyStaff,
+            description: newCompanyDesc,
+            site: newCompanySite,
+            missionText: newCompanyMissionText,
+          }
+        })
+      });
+      if (res.ok) {
+        const data = await res.json();
+        const newVal = data.value;
+        if (fieldName === "name") setNewCompanyName(newVal);
+        else if (fieldName === "industry") setNewCompanyIndustry(newVal);
+        else if (fieldName === "description") setNewCompanyDesc(newVal);
+        else if (fieldName === "sites") setNewCompanySite(newVal);
+        else if (fieldName === "logoUrl") setNewCompanyLogo(newVal);
+        else if (fieldName === "missionText") setNewCompanyMissionText(newVal);
+        else if (fieldName === "customWiki") setNewCompanyCustomWiki(newVal);
+        else if (fieldName === "salaryTerms") setNewCompanySalaryTerms(newVal);
+        else if (fieldName === "scheduleTerms") setNewCompanyScheduleTerms(newVal);
+        else if (fieldName === "statsValClients") setNewCompanyStatsValClients(newVal);
+        else if (fieldName === "statsLabelClients") setNewCompanyStatsLabelClients(newVal);
+        else if (fieldName === "statsValDialogs") setNewCompanyStatsValDialogs(newVal);
+        else if (fieldName === "statsLabelDialogs") setNewCompanyStatsLabelDialogs(newVal);
+        else if (fieldName === "statsValFounded") setNewCompanyStatsValFounded(newVal);
+        else if (fieldName === "statsLabelFounded") setNewCompanyStatsLabelFounded(newVal);
+
+        addAuditEvent("success", "ИИ Улучшение поля", `Поле успешно улучшено ИИ!`);
+      }
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setEnhancingFields(prev => ({ ...prev, [fieldName]: false }));
+    }
+  };
+
+  const handleEnhanceAllFields = async () => {
+    setIsEnhancingAll(true);
+    addAuditEvent("info", "ИИ Настройка", "ИИ-аналитик RR комплексно оформляет ваш бренд...");
+    try {
+      const res = await fetch("/api/enhance-all-fields", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: newCompanyName,
+          industry: newCompanyIndustry,
+          staff: newCompanyStaff,
+          description: newCompanyDesc,
+          sites: newCompanySite,
+          logoUrl: newCompanyLogo,
+          files: newCompanyFiles,
+          missionText: newCompanyMissionText,
+          customWiki: newCompanyCustomWiki,
+          salaryTerms: newCompanySalaryTerms,
+          scheduleTerms: newCompanyScheduleTerms,
+          statsValClients: newCompanyStatsValClients,
+          statsLabelClients: newCompanyStatsLabelClients,
+          statsValDialogs: newCompanyStatsValDialogs,
+          statsLabelDialogs: newCompanyStatsLabelDialogs,
+          statsValFounded: newCompanyStatsValFounded,
+          statsLabelFounded: newCompanyStatsLabelFounded
+        })
+      });
+      if (res.ok) {
+        const enriched = await res.json();
+        if (enriched.name) setNewCompanyName(enriched.name);
+        if (enriched.industry) setNewCompanyIndustry(enriched.industry);
+        if (enriched.staff) setNewCompanyStaff(enriched.staff);
+        if (enriched.description) setNewCompanyDesc(enriched.description);
+        if (enriched.sites) setNewCompanySite(enriched.sites);
+        if (enriched.logoUrl) setNewCompanyLogo(enriched.logoUrl);
+        if (enriched.missionText) setNewCompanyMissionText(enriched.missionText);
+        if (enriched.customWiki) setNewCompanyCustomWiki(enriched.customWiki);
+        if (enriched.salaryTerms) setNewCompanySalaryTerms(enriched.salaryTerms);
+        if (enriched.scheduleTerms) setNewCompanyScheduleTerms(enriched.scheduleTerms);
+        if (enriched.statsValClients) setNewCompanyStatsValClients(enriched.statsValClients);
+        if (enriched.statsLabelClients) setNewCompanyStatsLabelClients(enriched.statsLabelClients);
+        if (enriched.statsValDialogs) setNewCompanyStatsValDialogs(enriched.statsValDialogs);
+        if (enriched.statsLabelDialogs) setNewCompanyStatsLabelDialogs(enriched.statsLabelDialogs);
+        if (enriched.statsValFounded) setNewCompanyStatsValFounded(enriched.statsValFounded);
+        if (enriched.statsLabelFounded) setNewCompanyStatsLabelFounded(enriched.statsLabelFounded);
+
+        addAuditEvent("success", "Бренд упакован", "Все поля вашей компании успешно улучшены и структурированы ИИ!");
+      }
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setIsEnhancingAll(false);
+    }
+  };
+
+  const parseCompanyFileWithAI = async (filename: string) => {
+    setIsParsingFile(true);
+    addAuditEvent("info", "ИИ разбор регламента", `ИИ-Копирайтер ProTalk считывает и структурирует файл: ${filename}...`);
+    try {
+      const res = await fetch("/api/parse-company-file", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ fileName: filename })
+      });
+      if (res.ok) {
+        const payload = await res.json();
+        if (payload.name) setNewCompanyName(payload.name);
+        if (payload.industry) setNewCompanyIndustry(payload.industry);
+        if (payload.staff) setNewCompanyStaff(payload.staff);
+        if (payload.description) setNewCompanyDesc(payload.description);
+        if (payload.sites) setNewCompanySite(payload.sites);
+        if (payload.logoUrl) setNewCompanyLogo(payload.logoUrl);
+        if (payload.missionText) setNewCompanyMissionText(payload.missionText);
+        if (payload.customWiki) setNewCompanyCustomWiki(payload.customWiki);
+        if (payload.salaryTerms) setNewCompanySalaryTerms(payload.salaryTerms);
+        if (payload.scheduleTerms) setNewCompanyScheduleTerms(payload.scheduleTerms);
+        if (payload.statsValClients) setNewCompanyStatsValClients(payload.statsValClients);
+        if (payload.statsLabelClients) setNewCompanyStatsLabelClients(payload.statsLabelClients);
+        if (payload.statsValDialogs) setNewCompanyStatsValDialogs(payload.statsValDialogs);
+        if (payload.statsLabelDialogs) setNewCompanyStatsLabelDialogs(payload.statsLabelDialogs);
+        if (payload.statsValFounded) setNewCompanyStatsValFounded(payload.statsValFounded);
+        if (payload.statsLabelFounded) setNewCompanyStatsLabelFounded(payload.statsLabelFounded);
+
+        addAuditEvent("success", "ИИ разбор завершен", `Корпоративный профиль автоматически предзаполнен из документа ${filename}!`);
+      }
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setIsParsingFile(false);
+    }
+  };
+
   // Project (Vacancy) edit state
   const [editingProject, setEditingProject] = useState<JobProject | null>(null);
   const [editorSubTab, setEditorSubTab] = useState<string>("company");
   const [isSavingEdit, setIsSavingEdit] = useState(false);
+  const [inlineEditSection, setInlineEditSection] = useState<string | null>(null);
 
   // System Audit Events State
   const [auditEvents, setAuditEvents] = useState<any[]>([
@@ -626,7 +782,17 @@ export default function EmployerPanel() {
       sites: newCompanySite || "",
       logoUrl: newCompanyLogo || "",
       files: newCompanyFiles || "",
-      employerId
+      employerId,
+      missionText: newCompanyMissionText,
+      customWiki: newCompanyCustomWiki,
+      salaryTerms: newCompanySalaryTerms,
+      scheduleTerms: newCompanyScheduleTerms,
+      statsValClients: newCompanyStatsValClients,
+      statsLabelClients: newCompanyStatsLabelClients,
+      statsValDialogs: newCompanyStatsValDialogs,
+      statsLabelDialogs: newCompanyStatsLabelDialogs,
+      statsValFounded: newCompanyStatsValFounded,
+      statsLabelFounded: newCompanyStatsLabelFounded
     };
 
     try {
@@ -637,8 +803,15 @@ export default function EmployerPanel() {
       });
       if (res.ok) {
         const saved = await res.json();
-        setCompaniesList(prev => [...prev, saved]);
-        addAuditEvent("success", "Создана компания", `Зарегистрирован бренд ${newCompanyName}`);
+        setCompaniesList(prev => {
+          // If already exists, replace it, otherwise append
+          const exists = prev.some(c => c.slug === saved.slug);
+          if (exists) {
+            return prev.map(c => c.slug === saved.slug ? saved : c);
+          }
+          return [...prev, saved];
+        });
+        addAuditEvent("success", "Компания зарегистрирована", `Бренд "${newCompanyName}" сохранен со всеми ИИ-сведениями.`);
         
         // Reset inputs
         setNewCompanyName("");
@@ -647,6 +820,16 @@ export default function EmployerPanel() {
         setNewCompanySite("");
         setNewCompanyLogo("");
         setNewCompanyFiles("");
+        setNewCompanyMissionText("");
+        setNewCompanyCustomWiki("");
+        setNewCompanySalaryTerms("");
+        setNewCompanyScheduleTerms("");
+        setNewCompanyStatsValClients("");
+        setNewCompanyStatsLabelClients("");
+        setNewCompanyStatsValDialogs("");
+        setNewCompanyStatsLabelDialogs("");
+        setNewCompanyStatsValFounded("");
+        setNewCompanyStatsLabelFounded("");
         setShowAddCompany(false);
       }
     } catch (err) {
@@ -845,15 +1028,31 @@ export default function EmployerPanel() {
 
           {/* Quick Realtime Limit Monitor Tracker Widget */}
           <div className="bg-[#1D3E5E]/85 border border-white/15 rounded-3xl p-4 shadow-xl text-xs space-y-2 text-left">
-            <span className="text-[#E7C768] font-bold block uppercase tracking-wider font-mono text-[9px]">Текущие Ограничения</span>
+            <span className="text-[#E7C768] font-bold block uppercase tracking-wider font-mono text-[9px]">Текущие ИИ-Лимиты</span>
             <div className="space-y-1.5">
-              <div className="text-[11px] flex justify-between">
-                <span className="text-slate-300">Вакансии:</span>
-                <span className="font-mono text-white font-bold">{projects.length} / {tariffLevel === "bronze" ? 2 : tariffLevel === "silver" ? 5 : "Безлимит"}</span>
+              <div className="text-[11px] flex justify-between border-b border-white/5 pb-1 mb-1">
+                <span className="text-slate-300 font-bold">Баланс RR:</span>
+                <span className="font-mono text-[#E7C768] font-black">{balance} RR</span>
               </div>
               <div className="text-[11px] flex justify-between">
-                <span className="text-slate-300">Соискатели за месяц:</span>
-                <span className="font-mono text-white font-bold">{candidates.length} / {tariffLevel === "bronze" ? 5 : tariffLevel === "silver" ? 50 : "Безлимит"}</span>
+                <span className="text-slate-305">ИИ-Интервью:</span>
+                <span className="font-mono text-white font-bold">{limits.interviews} шт</span>
+              </div>
+              <div className="text-[11px] flex justify-between">
+                <span className="text-slate-305">ИИ-Обучение:</span>
+                <span className="font-mono text-white font-bold">{limits.trainings} шт</span>
+              </div>
+              <div className="text-[11px] flex justify-between">
+                <span className="text-slate-305">ИИ-Лендинги:</span>
+                <span className="font-mono text-white font-bold">{limits.landings} шт</span>
+              </div>
+              <div className="text-[11px] flex justify-between">
+                <span className="text-slate-305">Систем интервью:</span>
+                <span className="font-mono text-white font-bold">{limits.interviewSystems} шт</span>
+              </div>
+              <div className="text-[11px] flex justify-between">
+                <span className="text-slate-305">Систем Обучения:</span>
+                <span className="font-mono text-white font-bold">{limits.trainingSystems} шт</span>
               </div>
             </div>
           </div>
@@ -1614,61 +1813,27 @@ export default function EmployerPanel() {
 
               {/* BRAND CREATOR */}
               {showAddCompany && (
-                <form onSubmit={handleAddCompanySubmit} className="bg-black/45 border border-green-500/30 p-5 rounded-3xl space-y-4 shadow-xl">
-                  <span className="text-xs font-bold text-green-300 block font-mono">Добавление профиля организации</span>
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                    <input 
-                      type="text" 
-                      placeholder="Название. Например: ООО СофтЛаб" 
-                      className="bg-black/50 text-xs px-2.5 py-2 rounded-xl text-white border border-white/10 focus:outline-none" 
-                      required
-                      value={newCompanyName}
-                      onChange={(e) => setNewCompanyName(e.target.value)}
-                    />
-                    <input 
-                      type="text" 
-                      placeholder="Отрасль. Например: Производство" 
-                      className="bg-black/50 text-xs px-2.5 py-2 rounded-xl text-white border border-white/10 focus:outline-none"
-                      value={newCompanyIndustry}
-                      onChange={(e) => setNewCompanyIndustry(e.target.value)}
-                    />
-                    <select 
-                      className="bg-[#17344F] text-xs px-2.5 py-2 rounded-xl text-white border border-white/10 focus:outline-none"
-                      value={newCompanyStaff}
-                      onChange={(e) => setNewCompanyStaff(e.target.value)}
+                <form onSubmit={handleAddCompanySubmit} className="bg-black/45 border border-green-500/30 p-6 rounded-3xl space-y-6 shadow-2xl relative overflow-hidden">
+                  <div className="absolute top-0 left-0 w-full h-[3px] bg-gradient-to-r from-green-500 via-yellow-400 to-purple-500"></div>
+                  
+                  <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-2 border-b border-white/5">
+                    <div>
+                      <span className="text-xs font-bold text-green-300 block font-mono">ПАНЕЛЬ УПАКОВКИ БРЕНДА RR</span>
+                      <h4 className="text-sm font-semibold text-white">Интерактивный ИИ-профиль организации</h4>
+                    </div>
+                    
+                    <button
+                      type="button"
+                      onClick={handleEnhanceAllFields}
+                      disabled={isEnhancingAll || isParsingFile}
+                      className="px-4 py-2 text-xs font-bold rounded-xl text-white bg-gradient-to-r from-purple-600 via-violet-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 transition-all shadow-md shadow-indigo-900/30 flex items-center justify-center gap-1.5 disabled:opacity-50"
                     >
-                      <option value="менее 10 сотрудников">До 10 сотрудников</option>
-                      <option value="10-50 человек">10 - 50 сотрудников</option>
-                      <option value="50-250 человек">50 - 250 сотрудников</option>
-                      <option value="свыше 250 сотрудников">Более 250 человек</option>
-                    </select>
-                  </div>
-                  <textarea 
-                    placeholder="Описание миссии, бренда, основных продуктов компании" 
-                    className="w-full bg-black/50 text-xs p-2.5 rounded-xl border border-white/10 text-white"
-                    rows={2}
-                    value={newCompanyDesc}
-                    onChange={(e) => setNewCompanyDesc(e.target.value)}
-                  />
-
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <input 
-                      type="text" 
-                      placeholder="Веб-сайт компании (например: www.company.ru)" 
-                      className="bg-black/50 text-xs px-2.5 py-2 rounded-xl text-white border border-white/10 focus:outline-none"
-                      value={newCompanySite}
-                      onChange={(e) => setNewCompanySite(e.target.value)}
-                    />
-                    <input 
-                      type="text" 
-                      placeholder="Ссылка на файл логотипа (URL)" 
-                      className="bg-black/50 text-xs px-2.5 py-2 rounded-xl text-white border border-white/10 focus:outline-none"
-                      value={newCompanyLogo}
-                      onChange={(e) => setNewCompanyLogo(e.target.value)}
-                    />
+                      <Sparkles className={`w-3.5 h-3.5 ${isEnhancingAll ? "animate-spin" : ""}`} />
+                      {isEnhancingAll ? "Обработка ИИ..." : "Оформить красиво с помощью ИИ"}
+                    </button>
                   </div>
 
-                  {/* Drag-Drop / click base file uploader */}
+                  {/* Drag-Drop / click base file uploader with ProTalk integration */}
                   <div 
                     onClick={() => {
                       const fileInput = document.getElementById("comp-file-upload") as HTMLInputElement;
@@ -1680,10 +1845,15 @@ export default function EmployerPanel() {
                       if (e.dataTransfer.files && e.dataTransfer.files[0]) {
                         const file = e.dataTransfer.files[0];
                         setNewCompanyFiles(file.name);
-                        addAuditEvent("info", "Файл загружен", `Прикреплен корпоративный регламент: ${file.name}`);
+                        addAuditEvent("info", "Файл загружен", `Прикреплен регламент: ${file.name}`);
+                        parseCompanyFileWithAI(file.name);
                       }
                     }}
-                    className="cursor-pointer border-2 border-dashed border-white/15 bg-[#17344F]/40 hover:bg-[#17344F]/60 rounded-2xl p-4 text-center space-y-2 transition-all"
+                    className={`cursor-pointer border-2 border-dashed rounded-2xl p-4 text-center space-y-1.5 transition-all ${
+                      isParsingFile 
+                        ? "border-yellow-500 bg-yellow-500/5 animate-pulse" 
+                        : "border-white/10 bg-slate-900/40 hover:bg-slate-900/60"
+                    }`}
                   >
                     <input 
                       id="comp-file-upload" 
@@ -1691,24 +1861,332 @@ export default function EmployerPanel() {
                       className="hidden" 
                       onChange={(e) => {
                         if (e.target.files && e.target.files[0]) {
-                          setNewCompanyFiles(e.target.files[0].name);
-                          addAuditEvent("info", "Файл загружен", `Прикреплен файл: ${e.target.files[0].name}`);
+                          const file = e.target.files[0];
+                          setNewCompanyFiles(file.name);
+                          addAuditEvent("info", "Файл загружен", `Прикреплен файл: ${file.name}`);
+                          parseCompanyFileWithAI(file.name);
                         }
                       }}
                     />
-                    <div className="text-xs text-slate-300 font-bold">
+                    <div className="text-xs text-slate-300 font-bold flex items-center justify-center gap-2">
+                      <FileText className="w-4 h-4 text-green-400" />
                       {newCompanyFiles ? (
-                        <span className="text-[#E7C768]">Прикреплен регламент: {newCompanyFiles} ✓</span>
+                        <span className="text-yellow-400">Документ загружен: {newCompanyFiles} ✓</span>
                       ) : (
-                        "Перетащите файлы/регламенты компании или кликните для выбора (PDF, DOCX)"
+                        <span>Загрузить регламент / вакансию для автозаполнения ИИ</span>
                       )}
                     </div>
-                    <span className="text-[10px] text-slate-400 block font-mono">Файл будет автоматически разобран ИИ-рекрутером для составления базы знаний</span>
+                    <span className="text-[10px] text-slate-400 block font-mono">
+                      {isParsingFile 
+                        ? "⚡ ИИ от ProTalk анализирует регламент, заполняет все поля..." 
+                        : "ИИ автоматически разберет файл и заполнит ВСЕ поля ниже через структурированный JSON"
+                      }
+                    </span>
                   </div>
 
-                  <div className="flex justify-end gap-2 text-xs">
-                    <button type="button" onClick={() => setShowAddCompany(false)} className="px-3 py-1 bg-white/5 rounded-lg">Отмена</button>
-                    <button type="submit" className="px-4 py-1 bg-green-600 rounded-lg font-bold text-white">Сохранить</button>
+                  {/* FIELD GRID SECTIONS */}
+                  <div className="space-y-6">
+                    {/* SECTION 1: MAIN SVE */}
+                    <div className="space-y-3">
+                      <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider block">1. Основная информация о бренде</span>
+                      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                        <div className="relative flex items-center">
+                          <input 
+                            type="text" 
+                            placeholder="Название компании" 
+                            className="w-full bg-black/40 text-xs pl-3 pr-8 py-2.5 rounded-xl text-white border border-white/10 focus:outline-none focus:border-green-500/50" 
+                            required
+                            value={newCompanyName}
+                            onChange={(e) => setNewCompanyName(e.target.value)}
+                          />
+                          <button
+                            type="button"
+                            onClick={() => handleEnhanceSingleField("name", newCompanyName)}
+                            disabled={enhancingFields["name"]}
+                            className="absolute right-2.5 p-1 text-slate-400 hover:text-[#E7C768] disabled:opacity-30 transition-colors"
+                            title="Оформить красиво через ИИ"
+                          >
+                            <Sparkles className={`w-3.5 h-3.5 ${enhancingFields["name"] ? "animate-spin text-yellow-400" : ""}`} />
+                          </button>
+                        </div>
+
+                        <div className="relative flex items-center">
+                          <input 
+                            type="text" 
+                            placeholder="Отрасль (финансы, ритейл, кофейни)" 
+                            className="w-full bg-black/40 text-xs pl-3 pr-8 py-2.5 rounded-xl text-white border border-white/10 focus:outline-none focus:border-green-500/50"
+                            value={newCompanyIndustry}
+                            onChange={(e) => setNewCompanyIndustry(e.target.value)}
+                          />
+                          <button
+                            type="button"
+                            onClick={() => handleEnhanceSingleField("industry", newCompanyIndustry)}
+                            disabled={enhancingFields["industry"]}
+                            className="absolute right-2.5 p-1 text-slate-400 hover:text-[#E7C768] disabled:opacity-30 transition-colors"
+                            title="Подобрать отрасль ИИ"
+                          >
+                            <Sparkles className={`w-3.5 h-3.5 ${enhancingFields["industry"] ? "animate-spin text-yellow-400" : ""}`} />
+                          </button>
+                        </div>
+
+                        <select 
+                          className="bg-[#17344F] text-xs px-3 py-2.5 rounded-xl text-white border border-white/10 focus:outline-none"
+                          value={newCompanyStaff}
+                          onChange={(e) => setNewCompanyStaff(e.target.value)}
+                        >
+                          <option value="менее 10 сотрудников">До 10 сотрудников</option>
+                          <option value="10-50 человек">10 - 50 сотрудников</option>
+                          <option value="50-250 человек">50 - 250 сотрудников</option>
+                          <option value="свыше 250 сотрудников">Более 250 человек</option>
+                        </select>
+                      </div>
+
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div className="relative flex items-center">
+                          <input 
+                            type="text" 
+                            placeholder="Официальный сайт (например: www.it-lab.ru)" 
+                            className="w-full bg-black/40 text-xs pl-3 pr-8 py-2.5 rounded-xl text-white border border-white/10 focus:outline-none"
+                            value={newCompanySite}
+                            onChange={(e) => setNewCompanySite(e.target.value)}
+                          />
+                          <button
+                            type="button"
+                            onClick={() => handleEnhanceSingleField("sites", newCompanySite)}
+                            disabled={enhancingFields["sites"]}
+                            className="absolute right-2.5 p-1 text-slate-400 hover:text-[#E7C768] disabled:opacity-30 transition-colors"
+                            title="Сгенерировать красивый сайт ИИ"
+                          >
+                            <Sparkles className={`w-3.5 h-3.5 ${enhancingFields["sites"] ? "animate-spin text-yellow-400" : ""}`} />
+                          </button>
+                        </div>
+
+                        <div className="relative flex items-center">
+                          <input 
+                            type="text" 
+                            placeholder="URL-ссылка на логотип бренда" 
+                            className="w-full bg-black/40 text-xs pl-3 pr-8 py-2.5 rounded-xl text-white border border-white/10 focus:outline-none"
+                            value={newCompanyLogo}
+                            onChange={(e) => setNewCompanyLogo(e.target.value)}
+                          />
+                          <button
+                            type="button"
+                            onClick={() => handleEnhanceSingleField("logoUrl", newCompanyLogo)}
+                            disabled={enhancingFields["logoUrl"]}
+                            className="absolute right-2.5 p-1 text-slate-400 hover:text-[#E7C768] disabled:opacity-30 transition-colors"
+                            title="Подобрать иконку ИИ"
+                          >
+                            <Sparkles className={`w-3.5 h-3.5 ${enhancingFields["logoUrl"] ? "animate-spin text-yellow-400" : ""}`} />
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* SECTION 2: IDENTITY */}
+                    <div className="space-y-3">
+                      <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider block">2. Имидж, миссия и культура</span>
+                      
+                      <div className="relative">
+                        <textarea 
+                          placeholder="Описание философии, бренда, основных продуктов компании..." 
+                          className="w-full bg-black/40 text-xs pl-3 pr-10 py-2.5 rounded-xl border border-white/10 text-white focus:outline-none"
+                          rows={2}
+                          value={newCompanyDesc}
+                          onChange={(e) => setNewCompanyDesc(e.target.value)}
+                        />
+                        <button
+                          type="button"
+                          onClick={() => handleEnhanceSingleField("description", newCompanyDesc)}
+                          disabled={enhancingFields["description"]}
+                          className="absolute right-3 top-3 p-1 text-slate-400 hover:text-[#E7C768] disabled:opacity-30"
+                          title="Оформить миссию красиво"
+                        >
+                          <Sparkles className={`w-3.5 h-3.5 ${enhancingFields["description"] ? "animate-spin text-yellow-400" : ""}`} />
+                        </button>
+                      </div>
+
+                      <div className="relative">
+                        <textarea 
+                          placeholder="Миссия или слоган бренда (будет ярко выведена на лендинге)..." 
+                          className="w-full bg-black/40 text-xs pl-3 pr-10 py-2.5 rounded-xl border border-white/10 text-white focus:outline-none"
+                          rows={2}
+                          value={newCompanyMissionText}
+                          onChange={(e) => setNewCompanyMissionText(e.target.value)}
+                        />
+                        <button
+                          type="button"
+                          onClick={() => handleEnhanceSingleField("missionText", newCompanyMissionText)}
+                          disabled={enhancingFields["missionText"]}
+                          className="absolute right-3 top-3 p-1 text-slate-400 hover:text-[#E7C768] disabled:opacity-30"
+                          title="Дополнить слоган ИИ"
+                        >
+                          <Sparkles className={`w-3.5 h-3.5 ${enhancingFields["missionText"] ? "animate-spin text-yellow-400" : ""}`} />
+                        </button>
+                      </div>
+                    </div>
+
+                    {/* SECTION 3: KEY PERFORMANCE COUNTERS */}
+                    <div className="space-y-3">
+                      <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider block">3. Показатели компании (Stats bento-cards на лендинге)</span>
+                      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                        {/* STATS 1 */}
+                        <div className="bg-[#17344F]/25 border border-white/5 p-3 rounded-2xl space-y-2">
+                          <span className="text-[10px] uppercase font-bold text-slate-400 block">Показатель 1 (Клиенты)</span>
+                          <div className="relative flex items-center">
+                            <input 
+                              type="text" 
+                              placeholder="Например: 1200+" 
+                              className="w-full bg-black/50 text-xs px-2.5 py-1.5 rounded-lg border border-white/10 text-white"
+                              value={newCompanyStatsValClients}
+                              onChange={(e) => setNewCompanyStatsValClients(e.target.value)}
+                            />
+                            <button
+                              type="button"
+                              onClick={() => handleEnhanceSingleField("statsValClients", newCompanyStatsValClients)}
+                              disabled={enhancingFields["statsValClients"]}
+                              className="absolute right-2"
+                            >
+                              <Sparkles className={`w-3 h-3 text-slate-400 ${enhancingFields["statsValClients"] ? "animate-spin text-yellow-400" : ""}`} />
+                            </button>
+                          </div>
+                          <input 
+                            type="text" 
+                            placeholder="Подпись. Например: Активных клиентов" 
+                            className="w-full bg-black/50 text-[10px] px-2.5 py-1.5 rounded-lg border border-white/10 text-white"
+                            value={newCompanyStatsLabelClients}
+                            onChange={(e) => setNewCompanyStatsLabelClients(e.target.value)}
+                          />
+                        </div>
+
+                        {/* STATS 2 */}
+                        <div className="bg-[#17344F]/25 border border-white/5 p-3 rounded-2xl space-y-2">
+                          <span className="text-[10px] uppercase font-bold text-slate-400 block">Показатель 2 (Обороты)</span>
+                          <div className="relative flex items-center">
+                            <input 
+                              type="text" 
+                              placeholder="Например: 15 млн" 
+                              className="w-full bg-black/50 text-xs px-2.5 py-1.5 rounded-lg border border-white/10 text-white"
+                              value={newCompanyStatsValDialogs}
+                              onChange={(e) => setNewCompanyStatsValDialogs(e.target.value)}
+                            />
+                            <button
+                              type="button"
+                              onClick={() => handleEnhanceSingleField("statsValDialogs", newCompanyStatsValDialogs)}
+                              disabled={enhancingFields["statsValDialogs"]}
+                              className="absolute right-2"
+                            >
+                              <Sparkles className={`w-3 h-3 text-slate-400 ${enhancingFields["statsValDialogs"] ? "animate-spin text-yellow-400" : ""}`} />
+                            </button>
+                          </div>
+                          <input 
+                            type="text" 
+                            placeholder="Подпись. Например: Диалогов пройдено" 
+                            className="w-full bg-black/50 text-[10px] px-2.5 py-1.5 rounded-lg border border-white/10 text-white"
+                            value={newCompanyStatsLabelDialogs}
+                            onChange={(e) => setNewCompanyStatsLabelDialogs(e.target.value)}
+                          />
+                        </div>
+
+                        {/* STATS 3 */}
+                        <div className="bg-[#17344F]/25 border border-white/5 p-3 rounded-2xl space-y-2">
+                          <span className="text-[10px] uppercase font-bold text-slate-400 block">Показатель 3 (История)</span>
+                          <div className="relative flex items-center">
+                            <input 
+                              type="text" 
+                              placeholder="Например: 2018" 
+                              className="w-full bg-black/50 text-xs px-2.5 py-1.5 rounded-lg border border-white/10 text-white"
+                              value={newCompanyStatsValFounded}
+                              onChange={(e) => setNewCompanyStatsValFounded(e.target.value)}
+                            />
+                            <button
+                              type="button"
+                              onClick={() => handleEnhanceSingleField("statsValFounded", newCompanyStatsValFounded)}
+                              disabled={enhancingFields["statsValFounded"]}
+                              className="absolute right-2"
+                            >
+                              <Sparkles className={`w-3 h-3 text-slate-400 ${enhancingFields["statsValFounded"] ? "animate-spin text-yellow-400" : ""}`} />
+                            </button>
+                          </div>
+                          <input 
+                            type="text" 
+                            placeholder="Подпись. Например: Год основания" 
+                            className="w-full bg-black/50 text-[10px] px-2.5 py-1.5 rounded-lg border border-white/10 text-white"
+                            value={newCompanyStatsLabelFounded}
+                            onChange={(e) => setNewCompanyStatsLabelFounded(e.target.value)}
+                          />
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* SECTION 4: DEFAULT CONDITIONS & WIKI */}
+                    <div className="space-y-3">
+                      <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider block">4. Стандарты условий и регламенты (Для редактора лендингов)</span>
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div className="relative flex items-center">
+                          <input 
+                            type="text" 
+                            placeholder="Условия оплаты (напр: 100 000 руб)" 
+                            className="w-full bg-black/40 text-xs pl-3 pr-8 py-2.5 rounded-xl text-white border border-white/10 focus:outline-none"
+                            value={newCompanySalaryTerms}
+                            onChange={(e) => setNewCompanySalaryTerms(e.target.value)}
+                          />
+                          <button
+                            type="button"
+                            onClick={() => handleEnhanceSingleField("salaryTerms", newCompanySalaryTerms)}
+                            disabled={enhancingFields["salaryTerms"]}
+                            className="absolute right-2.5 p-1 text-slate-400 hover:text-[#E7C768] disabled:opacity-30 transition-colors"
+                            title="Рассчитать привлекательную сетку"
+                          >
+                            <Sparkles className={`w-3.5 h-3.5 ${enhancingFields["salaryTerms"] ? "animate-spin text-yellow-400" : ""}`} />
+                          </button>
+                        </div>
+
+                        <div className="relative flex items-center">
+                          <input 
+                            type="text" 
+                            placeholder="Формат графика (напр: 5/2, 2/2 еженедельно)" 
+                            className="w-full bg-black/40 text-xs pl-3 pr-8 py-2.5 rounded-xl text-white border border-white/10 focus:outline-none"
+                            value={newCompanyScheduleTerms}
+                            onChange={(e) => setNewCompanyScheduleTerms(e.target.value)}
+                          />
+                          <button
+                            type="button"
+                            onClick={() => handleEnhanceSingleField("scheduleTerms", newCompanyScheduleTerms)}
+                            disabled={enhancingFields["scheduleTerms"]}
+                            className="absolute right-2.5 p-1 text-slate-400 hover:text-[#E7C768] disabled:opacity-30 transition-colors"
+                            title="Сформулировать график"
+                          >
+                            <Sparkles className={`w-3.5 h-3.5 ${enhancingFields["scheduleTerms"] ? "animate-spin text-yellow-400" : ""}`} />
+                          </button>
+                        </div>
+                      </div>
+
+                      <div className="relative">
+                        <textarea 
+                          placeholder="Корпоративная Wiki-база, регламенты звонков и сдачи отчетности..." 
+                          className="w-full bg-black/40 text-xs pl-3 pr-10 py-2.5 rounded-xl border border-white/10 text-white focus:outline-none"
+                          rows={3}
+                          value={newCompanyCustomWiki}
+                          onChange={(e) => setNewCompanyCustomWiki(e.target.value)}
+                        />
+                        <button
+                          type="button"
+                          onClick={() => handleEnhanceSingleField("customWiki", newCompanyCustomWiki)}
+                          disabled={enhancingFields["customWiki"]}
+                          className="absolute right-3 top-3 p-1 text-slate-400 hover:text-[#E7C768] disabled:opacity-30"
+                          title="Структурировать Wiki ИИ"
+                        >
+                          <Sparkles className={`w-3.5 h-3.5 ${enhancingFields["customWiki"] ? "animate-spin text-yellow-400" : ""}`} />
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="flex justify-end gap-2 text-xs pt-2">
+                    <button type="button" onClick={() => setShowAddCompany(false)} className="px-4 py-2 hover:bg-white/5 rounded-xl">Отмена</button>
+                    <button type="submit" className="px-6 py-2 bg-green-600 hover:bg-green-500 rounded-xl font-bold text-white shadow-lg transition-all">
+                      Сохранить и Синхронизировать
+                    </button>
                   </div>
                 </form>
               )}
@@ -2731,6 +3209,43 @@ export default function EmployerPanel() {
               </h2>
             </div>
 
+            {companiesList.some(c => c.name.toLowerCase() === editingProject.companyName?.toLowerCase()) && (
+              <div className="bg-green-500/10 border border-green-500/30 p-3.5 rounded-2xl flex flex-col sm:flex-row sm:items-center justify-between gap-4 animate-pulse">
+                <div className="flex items-center gap-2">
+                  <span className="text-xs text-green-300 font-bold font-mono">🌟 ИИ-ПОРТАЛ СИНХРОНИЗАЦИИ:</span>
+                  <p className="text-xs text-slate-200">Найден зарегистрированный профиль компании "{editingProject.companyName}"</p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => {
+                    const comp = companiesList.find(c => c.name.toLowerCase() === editingProject.companyName?.toLowerCase());
+                    if (comp) {
+                      setEditingProject({
+                        ...editingProject,
+                        logoUrl: comp.logoUrl || editingProject.logoUrl,
+                        customWiki: comp.customWiki || editingProject.customWiki,
+                        companyText: comp.description || editingProject.companyText,
+                        missionText: comp.missionText || editingProject.missionText,
+                        salaryTerms: comp.salaryTerms || editingProject.salaryTerms,
+                        scheduleTerms: comp.scheduleTerms || editingProject.scheduleTerms,
+                        statsValClients: comp.statsValClients || editingProject.statsValClients,
+                        statsLabelClients: comp.statsLabelClients || editingProject.statsLabelClients,
+                        statsValDialogs: comp.statsValDialogs || editingProject.statsValDialogs,
+                        statsLabelDialogs: comp.statsLabelDialogs || editingProject.statsLabelDialogs,
+                        statsValFounded: comp.statsValFounded || editingProject.statsValFounded,
+                        statsLabelFounded: comp.statsLabelFounded || editingProject.statsLabelFounded
+                      });
+                      addAuditEvent("success", "Бренд интегрирован", `Все ИИ-поля из организации "${comp.name}" успешно импортированы в лендинг вакансии.`);
+                    }
+                  }}
+                  className="px-3.5 py-1.5 text-xs font-bold rounded-xl text-green-950 bg-green-400 hover:bg-green-300 transition-all flex items-center justify-center gap-1 shadow-md shadow-green-950/20 self-start sm:self-center"
+                >
+                  <Sparkles className="w-3.5 h-3.5" />
+                  Перенести ИИ-поля в редактор лендинга
+                </button>
+              </div>
+            )}
+
             <form onSubmit={handleSaveEditedProject} className="space-y-5">
               
               {/* Top part: General Vacancy Parameters */}
@@ -2824,7 +3339,7 @@ export default function EmployerPanel() {
                 </div>
               </div>
 
-              {/* Middle Section: Switcher of the 8 Interactive Subpages */}
+              {/* Middle Section: Switcher of the Interactive Subpages */}
               <div className="space-y-4">
                 <div className="flex items-center justify-between border-b border-white/5 pb-2">
                   <span className="text-xs font-mono uppercase tracking-wider text-[#E7C768]">
@@ -2837,13 +3352,15 @@ export default function EmployerPanel() {
                 <div className="flex flex-wrap gap-1.5">
                   {[
                     { key: "company", label: "🏢 Компания" },
-                    { key: "vacancy", label: "💼 Вакансия" },
+                    { key: "vacancy", label: "💼 Требования" },
+                    { key: "tasksActivity", label: "🎯 Обязанности (Табы)" },
                     { key: "schedule", label: "📅 График" },
                     { key: "motivation", label: "🔥 Мотивация" },
                     { key: "payouts", label: "💵 Выплаты" },
-                    { key: "onboarding", label: "🚀 Оформление" },
+                    { key: "onboarding", label: "🚀 Этапы адаптации" },
                     { key: "team", label: "👥 Команда" },
-                    { key: "system", label: "⚙️ ИИ-Система" }
+                    { key: "cabinetTabs", label: "💻 Кабинет (Табы)" },
+                    { key: "system", label: "⚙️ Регламенты" }
                   ].map((btn) => {
                     const isActive = editorSubTab === btn.key;
                     return (
@@ -2866,11 +3383,11 @@ export default function EmployerPanel() {
                 {/* Split Workspace Column Grid */}
                 <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 pt-1.5 font-sans">
                   
-                  {/* Left Column: Vertical stack of ALL 8 editable fields */}
+                  {/* Left Column: Vertical stack of ALL editable fields */}
                   <div className="lg:col-span-5 bg-black/15 p-4 rounded-2xl border border-white/5 space-y-4 max-h-[660px] overflow-y-auto scrollbar-thin">
                     <div className="flex justify-between items-center bg-white/5 p-2 rounded-xl border border-white/5">
-                      <span className="text-[10px] font-mono text-emerald-400 uppercase font-bold">Поля редактирования блока (8 шт)</span>
-                      <span className="text-[9px] text-slate-400">Кликните по предпросмотру или тут</span>
+                      <span className="text-[10px] font-mono text-emerald-400 uppercase font-bold">Поля редактирования блока</span>
+                      <span className="text-[9px] text-slate-400">Кликните по предпросмотру или кнопкам выше</span>
                     </div>
 
                     {[
@@ -2882,9 +3399,15 @@ export default function EmployerPanel() {
                       },
                       {
                         key: "vacancy",
-                        label: "💼 Обязанности & Требования",
-                        hint: "Каждый пункт пишите с новой строки:",
+                        label: "💼 Требования к кандидату",
+                        hint: "Опишите требования и базовый пул задач (каждый пункт пишите с новой строки):",
                         field: "vacancyText"
+                      },
+                      {
+                        key: "tasksActivity",
+                        label: "🎯 Чем вы будете Заниматься (Табы)",
+                        hint: "Раздел интерактивных вкладок задач. Формат: [📞 Название таба] Описание задачи. Каждый пункт с новой строки:",
+                        field: "tasksActivityText"
                       },
                       {
                         key: "schedule",
@@ -2906,20 +3429,26 @@ export default function EmployerPanel() {
                       },
                       {
                         key: "onboarding",
-                        label: "🚀 Процесс Оформления",
-                        hint: "Опишите по порядку этапы стажировки (с новых строк):",
+                        label: "🚀 Этапы адаптации",
+                        hint: "Каждая вкладка этапа с новой строки в формате: [📝 Название этапа] Подробное описание:",
                         field: "onboardingText"
                       },
                       {
                         key: "team",
-                        label: "👥 Наша Команда",
-                        hint: "Каждого куратора пишите в формате: Имя - Должность. Текст девиза.",
+                        label: "👥 Наша Команда (Отделы и кураторы)",
+                        hint: "Формат: [Отдел] Название и ниже кураторы в формате Имя - Должность. Описание сотрудника:",
                         field: "teamText"
                       },
                       {
+                        key: "cabinetTabs",
+                        label: "💻 Интерактивный Кабинет (Табы)",
+                        hint: "Вкладки рабочих платформ кандидата. Формат: [💻 Название] Описание вкладки | 💡 Регламент:",
+                        field: "cabinetTabsText"
+                      },
+                      {
                         key: "system",
-                        label: "⚙️ ИИ-Система РобоРекрут",
-                        hint: "Опишите критерии оценки диалога, время на тест и сдачу по строкам:",
+                        label: "⚙️ Регламенты ежедневной отчетности",
+                        hint: "Опишите правила и контрольные критерии ежедневного зачета и отчетности по строкам:",
                         field: "systemText"
                       }
                     ].map((item) => {
@@ -2927,12 +3456,14 @@ export default function EmployerPanel() {
                       const getDefaultValue = (k: string) => {
                         if (k === "company") return "• Мы поставляем автоматизированные скрипты и голосовых помощников на рынке СНГ.\n• Создали более 15 крупных интеграций года.\n• Горизонтальная структура команды - у вас всегда есть прямой доступ к лидерам проекта.";
                         if (k === "vacancy") return "• Ведение переговоров с клиентами по готовой базе\n• Внесение информации в простую CRM\n• Консультирование по тарифам\n• Быстрый и вежливый отклик\n• Уверенный пользователь ПК\n• Базовые навыки общения";
+                        if (k === "tasksActivity") return "• [📞 Консультация] Клиент интересуется возможностью автоматизации рекламы. Ваша задача - открыть Wiki и направить ссылку на тариф.\n• [📝 CRM Система] Добавить краткую заметку по итогам звонка в карточку сделки.\n• [🤝 Отработка возражений] Помощь клиентам при возникновении сомнений, используя интерактивные скрипты.";
                         if (k === "schedule") return "• Гибкие смены от 4 часов в день во временном интервале с 10:00 до 19:00.\n• Возможность брать выходные в любой день недели.\n• Вы заходите в систему ИИ тогда, когда вам это удобно.";
                         if (k === "motivation") return "• Премии до 30% за высокую скорость заполнения карточек CRM\n• Еженедельные выплаты за успешные звонки\n• Компенсация затрат на интернет\n• Обучение за счет компании и кураторство";
                         if (k === "payouts") return "• Фиксированная оплата за каждый пройденный качественный звонок (от 120 р).\n• Выплаты дважды в месяц без задержек (10 и 25 числа).\n• Официальные начисления на карту любого банка.\n• Бонус за приглашенных друзей - 5000 рублей.";
-                        if (k === "onboarding") return "• Быстрое тестирование навыков через ИИ-Режим\n• Ознакомление с Wiki базой знаний\n• Первые симуляционные звонки с подсказками ИИ\n• Подписание договора (ГПХ или Самозанятость) за 1 день";
-                        if (k === "team") return "• Дмитрий - Тимлид команды. Автор продающих сценариев в Wiki.\n• Ольга - HR куратор. Сопровождает подписание ГПХ договоров.\n• Мария - Специфика обучения. Поможет войти в ритм ИИ-ассистента в первые часы.";
-                        if (k === "system") return "• Ведение клиентской базы в amoCRM: своевременная смена этапов сделок, фиксация договоренностей и внесение комментариев.\n• Google Таблицы: ежедневное заполнение оперативной отчетности, учет звонков и ведение реестра договоров.\n• IP-Телефония: звонки клиентам осуществляются в один клик прямо из карточки сделки в amoCRM.\n• Четкие диалоговые регламенты: использование интерактивной Wiki для быстрой отработки сложных вопросов клиентов.\n• Координация в рабочих чатах: ежедневный разбор сложных кейсов с личным наставником.";
+                        if (k === "onboarding") return "• [📝 Экспресс-тест] Быстрое тестирование навыков через ИИ-Режим\n• [📚 Изучение Wiki] Ознакомление с Wiki базой знаний со всеми регламентами работы\n• [🤖 ИИ-Разговор] Первые симуляционные звонки с качественными подсказками наставника\n• [✍️ Оформление] Подписание официального договора (ГПХ или Самозанятость) за 1 рабочий день";
+                        if (k === "team") return "• [Отдел] Отдел телефонных продаж CRM\n• Дмитрий - Тимлид команды. Автор продающих сценариев в Wiki.\n• Ольга - HR куратор. Сопровождает подписание ГПХ договоров.\n• [Отдел] Отдел контроля качества\n• Мария - Специфика обучения. Поможет войти в ритм ИИ-ассистента в первые часы.";
+                        if (k === "cabinetTabs") return "• [💻 Панель amoCRM] Вся база клиентов находится в структурированной воронке продаж. При звонке карточка открывается автоматически. Вам нужно зафиксировать этап сделки (например, 'Квалифицирован', 'Отправлено КП' или 'Отказ') и написать краткий комментарий по звонку. Система автоматически напомнит о следующем контакте. | 💡 Регламент: Любое изменение статуса контрагента должно сопровождаться комментарием не менее 4-х слов.\n• [📊 Google Таблицы] Форма ежедневного планового зачета звонков и выполненных задач. Сюда заносится количество совершенных эффективных контактов за смену, отправленные коммерческие предложения и планируемые сделки на завтра. | 💡 Ежедневная отчетность должна заполняться до 20:30 МСК текущего рабочего дня.\n• [📞 IP-Телефония] Набор номеров клиентов происходит прямо со встроенного софтфона в один клик. Нет необходимости вводить номера вручную. Все разговоры автоматически записываются и архивируются. | 💡 Требуется гарнитура с шумоподавлением и стабильное интернет-соединение.";
+                        if (k === "system") return "• Ведение клиентской базы в amoCRM: своевременная смена этапов сделок, фиксация договоренностей и комментариев.\n• Google Таблицы: ежедневное заполнение оперативной отчетности в конце своего рабочего дня.\n• IP-Телефония: звонки клиентам в один клик прямо из CRM.\n• Использование интерактивной Wiki для быстрой отработки сложных вопросов.";
                         return "";
                       };
                       return (
@@ -2956,8 +3487,8 @@ export default function EmployerPanel() {
                           </div>
                           <p className="text-[9px] text-slate-400 leading-tight">{item.hint}</p>
                           <textarea
-                            rows={3}
-                            className="w-full bg-[#112335] text-xs p-2 rounded-lg border border-white/10 text-white font-mono focus:outline-none focus:border-[#E7C768] transition"
+                            rows={4}
+                            className="w-full bg-[#112335] text-xs p-2 rounded-lg border border-white/10 text-white font-mono focus:outline-none focus:border-[#E7C768] transition scrollbar-thin"
                             value={(editingProject as any)[item.field] !== undefined && (editingProject as any)[item.field] !== null && (editingProject as any)[item.field] !== "" ? (editingProject as any)[item.field] : getDefaultValue(item.key)}
                             onChange={(e) => {
                               setEditingProject({
@@ -2991,13 +3522,15 @@ export default function EmployerPanel() {
 
                     {[
                       { key: "company", label: "🏢 О компании", component: <CompanyView project={editingProject} /> },
-                      { key: "vacancy", label: "💼 Обязанности & Требования", component: <VacancyView project={editingProject} /> },
+                      { key: "vacancy", label: "💼 Требования", component: <VacancyView project={editingProject} /> },
+                      { key: "tasksActivity", label: "🎯 Обязанности (Табы)", component: <VacancyView project={editingProject} /> },
                       { key: "schedule", label: "📅 График Работы", component: <ScheduleView project={editingProject} /> },
                       { key: "motivation", label: "🔥 Мотивация и привилегии", component: <MotivationView project={editingProject} /> },
                       { key: "payouts", label: "💵 Финансовые Выплаты", component: <PayoutsView project={editingProject} /> },
-                      { key: "onboarding", label: "🚀 Процесс Оформления", component: <OnboardingView project={editingProject} /> },
+                      { key: "onboarding", label: "🚀 Этапы адаптации", component: <OnboardingView project={editingProject} /> },
                       { key: "team", label: "👥 Наша Команда", component: <TeamView project={editingProject} /> },
-                      { key: "system", label: "⚙️ ИИ-Система РобоРекрут", component: <SystemView project={editingProject} /> }
+                      { key: "cabinetTabs", label: "💻 Кабинет (Табы)", component: <SystemView project={editingProject} /> },
+                      { key: "system", label: "⚙️ Регламенты", component: <SystemView project={editingProject} /> }
                     ].map((section) => {
                       const isActive = editorSubTab === section.key;
                       return (
@@ -3005,6 +3538,7 @@ export default function EmployerPanel() {
                           key={section.key}
                           onClick={() => {
                             setEditorSubTab(section.key);
+                            setInlineEditSection(section.key);
                             const element = document.getElementById(`editor-card-${section.key}`);
                             if (element) {
                               element.scrollIntoView({ behavior: "smooth", block: "nearest" });
@@ -3017,6 +3551,9 @@ export default function EmployerPanel() {
                           }`}
                         >
                           <div className="absolute top-2 right-3 flex items-center gap-1.5 z-10">
+                            <span className="text-[8px] bg-sky-500/10 text-sky-400 px-1.5 py-0.5 rounded font-mono font-bold hidden group-hover:inline-block animate-pulse">
+                              ✏️ Кликните для редактирования в поп-ап
+                            </span>
                             <span className={`text-[8px] font-bold px-1.5 py-0.5 rounded uppercase tracking-wider ${
                               isActive ? "bg-[#E7C768] text-[#112335]" : "bg-white/5 text-slate-400 group-hover:bg-[#E7C768]/10 group-hover:text-[#E7C768]"
                             }`}>
@@ -3062,6 +3599,192 @@ export default function EmployerPanel() {
         </div>
       )}
 
+      {/* MODAL WINDOW: INLINE POPUP SECTION EDITOR */}
+      {editingProject && inlineEditSection && (
+        <div className="fixed inset-0 z-[60] bg-black/80 backdrop-blur-md flex items-center justify-center p-4">
+          <div className="bg-[#12283C] border-2 border-[#E7C768] rounded-3xl w-full max-w-2xl text-left text-white shadow-2xl relative p-6 sm:p-8 space-y-5 animate-fadeIn overflow-y-auto max-h-[90vh]">
+            <button 
+              type="button"
+              onClick={() => setInlineEditSection(null)} 
+              className="absolute top-4 right-4 text-slate-400 hover:text-white text-lg font-bold cursor-pointer bg-white/5 border border-white/10 w-8 h-8 rounded-full flex items-center justify-center transition"
+            >
+              ✕
+            </button>
+
+            <div className="border-b border-white/10 pb-3">
+              <span className="text-[10px] font-mono text-[#E7C768] uppercase font-bold tracking-wider block">Быстрое редактирование блока</span>
+              <h3 className="text-lg font-black text-white mt-1">
+                {inlineEditSection === "company" && "🏢 О компании, миссии и масштабе"}
+                {inlineEditSection === "vacancy" && "💼 Требования к кандидату"}
+                {inlineEditSection === "tasksActivity" && "🎯 Обязанности и Задачи"}
+                {inlineEditSection === "schedule" && "📅 График Работы"}
+                {inlineEditSection === "motivation" && "🔥 Мотивация и привилегии"}
+                {inlineEditSection === "payouts" && "💵 Финансовые Выплаты"}
+                {inlineEditSection === "onboarding" && "🚀 Процесс Онбординга"}
+                {inlineEditSection === "team" && "👥 Наша Команда"}
+                {inlineEditSection === "cabinetTabs" && "💻 Рабочий Кабинет"}
+                {inlineEditSection === "system" && "⚙️ Регламенты контроля"}
+              </h3>
+              <p className="text-[10px] text-slate-400 mt-1">
+                {inlineEditSection === "company" && "Опишите факты, укажите миссию и настройте 3 счетчика на лендинге:"}
+                {inlineEditSection === "vacancy" && "Ниже перечислены требования. Каждый пункт пишите с новой строки:"}
+                {inlineEditSection === "tasksActivity" && "Опишите ежедневные задачи. Формат: • [📞 Консультация] Описание задачи:"}
+                {inlineEditSection === "schedule" && "Пропишите условия графика. Каждый пункт пишите с новой строки:"}
+                {inlineEditSection === "motivation" && "Привилегии и бонусы компании. Каждый пункт с новой строки:"}
+                {inlineEditSection === "payouts" && "Правила и условия выплат авансов, фикса, бонусов за друзей:"}
+                {inlineEditSection === "onboarding" && "Опишите по порядку этапы стажировки: • [📝 Экспресс-тест] Описание этапа:"}
+                {inlineEditSection === "team" && "Каждый куратор в формате: • Имя - Должность. Текст девиза:"}
+                {inlineEditSection === "cabinetTabs" && "Инструменты CRM. Формат: • [💻 Название] Описание | 💡 Регламент:"}
+                {inlineEditSection === "system" && "Свод правил контроля качества звонков кандидатов и стажеров:"}
+              </p>
+            </div>
+
+            <div className="space-y-4">
+              {inlineEditSection === "company" && (
+                <div className="space-y-4">
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-bold text-[#E7C768]">Факты о компании (каждый с новой строки):</label>
+                    <textarea
+                      className="w-full bg-[#112335] text-xs p-3 rounded-xl border border-white/10 text-white font-mono focus:outline-none focus:border-[#E7C768]"
+                      rows={4}
+                      value={editingProject.companyText || ""}
+                      onChange={(e) => setEditingProject({ ...editingProject, companyText: e.target.value })}
+                      placeholder="• Мы на рынке более 10 лет..."
+                    />
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-bold text-[#E7C768]">Цитата / Миссия компании:</label>
+                    <textarea
+                      className="w-full bg-[#112335] text-xs p-2.5 rounded-xl border border-white/10 text-white focus:outline-none focus:border-[#E7C768]"
+                      rows={2}
+                      value={editingProject.missionText || "Наша миссия — избавить людей от рутины в холодных звонках, автоматизировав базовую квалификацию лидов. Каждый день мы упрощаем работу сотрудникам отделов продаж по всему миру."}
+                      onChange={(e) => setEditingProject({ ...editingProject, missionText: e.target.value })}
+                      placeholder="Опишите глобальную миссию компании"
+                    />
+                  </div>
+
+                  <div className="border-t border-white/5 pt-3">
+                    <span className="text-[10px] font-mono uppercase tracking-wider text-[#E7C768] font-bold block mb-2">🔥 Настройка 3-х характеристик/счетчиков</span>
+                    
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                      <div className="bg-[#112335]/55 p-2 rounded-xl border border-white/5 space-y-1">
+                        <span className="text-[9px] text-[#E7C768] font-bold font-mono">Счетчик 1</span>
+                        <input
+                          type="text"
+                          className="w-full bg-[#112335] text-xs p-1.5 rounded-lg border border-white/10 text-white font-black"
+                          value={editingProject.statsValClients !== undefined && editingProject.statsValClients !== null ? editingProject.statsValClients : "350+"}
+                          onChange={(e) => setEditingProject({ ...editingProject, statsValClients: e.target.value })}
+                          placeholder="Значение"
+                        />
+                        <input
+                          type="text"
+                          className="w-full bg-[#112335] text-[10px] p-1.5 rounded-lg border border-white/10 text-slate-350"
+                          value={editingProject.statsLabelClients !== undefined && editingProject.statsLabelClients !== null ? editingProject.statsLabelClients : "Клиентов в СНГ"}
+                          onChange={(e) => setEditingProject({ ...editingProject, statsLabelClients: e.target.value })}
+                          placeholder="Подпись"
+                        />
+                      </div>
+
+                      <div className="bg-[#112335]/55 p-2 rounded-xl border border-white/5 space-y-1">
+                        <span className="text-[9px] text-[#E7C768] font-bold font-mono">Счетчик 2</span>
+                        <input
+                          type="text"
+                          className="w-full bg-[#112335] text-xs p-1.5 rounded-lg border border-white/10 text-white font-black"
+                          value={editingProject.statsValDialogs !== undefined && editingProject.statsValDialogs !== null ? editingProject.statsValDialogs : "15 000+"}
+                          onChange={(e) => setEditingProject({ ...editingProject, statsValDialogs: e.target.value })}
+                          placeholder="Значение"
+                        />
+                        <input
+                          type="text"
+                          className="w-full bg-[#112335] text-[10px] p-1.5 rounded-lg border border-white/10 text-slate-355"
+                          value={editingProject.statsLabelDialogs !== undefined && editingProject.statsLabelDialogs !== null ? editingProject.statsLabelDialogs : "ИИ-диалогов в сутки"}
+                          onChange={(e) => setEditingProject({ ...editingProject, statsLabelDialogs: e.target.value })}
+                          placeholder="Подпись"
+                        />
+                      </div>
+
+                      <div className="bg-[#112335]/55 p-2 rounded-xl border border-white/5 space-y-1">
+                        <span className="text-[9px] text-[#E7C768] font-bold font-mono">Счетчик 3</span>
+                        <input
+                          type="text"
+                          className="w-full bg-[#112335] text-xs p-1.5 rounded-lg border border-white/10 text-white font-black"
+                          value={editingProject.statsValFounded !== undefined && editingProject.statsValFounded !== null ? editingProject.statsValFounded : "2021"}
+                          onChange={(e) => setEditingProject({ ...editingProject, statsValFounded: e.target.value })}
+                          placeholder="Значение"
+                        />
+                        <input
+                          type="text"
+                          className="w-full bg-[#112335] text-[10px] p-1.5 rounded-lg border border-white/10 text-slate-350"
+                          value={editingProject.statsLabelFounded !== undefined && editingProject.statsLabelFounded !== null ? editingProject.statsLabelFounded : "Год основания"}
+                          onChange={(e) => setEditingProject({ ...editingProject, statsLabelFounded: e.target.value })}
+                          placeholder="Подпись"
+                        />
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {inlineEditSection !== "company" && (
+                <div className="space-y-1.5">
+                  <label className="text-xs font-bold text-[#E7C768]">Содержание контента блока:</label>
+                  <textarea
+                    className="w-full bg-[#112335] text-xs p-3 rounded-xl border border-white/10 text-white font-mono focus:outline-none focus:border-[#E7C768] scrollbar-thin"
+                    rows={12}
+                    value={(() => {
+                      const map: Record<string, string> = {
+                        vacancy: "vacancyText",
+                        tasksActivity: "tasksActivityText",
+                        schedule: "scheduleText",
+                        motivation: "motivationTextDetail",
+                        payouts: "payoutsText",
+                        onboarding: "onboardingText",
+                        team: "teamText",
+                        cabinetTabs: "cabinetTabsText",
+                        system: "systemText"
+                      };
+                      const fieldName = map[inlineEditSection];
+                      return (editingProject as any)[fieldName] || "";
+                    })()}
+                    onChange={(e) => {
+                      const map: Record<string, string> = {
+                        vacancy: "vacancyText",
+                        tasksActivity: "tasksActivityText",
+                        schedule: "scheduleText",
+                        motivation: "motivationTextDetail",
+                        payouts: "payoutsText",
+                        onboarding: "onboardingText",
+                        team: "teamText",
+                        cabinetTabs: "cabinetTabsText",
+                        system: "systemText"
+                      };
+                      const fieldName = map[inlineEditSection];
+                      setEditingProject({
+                        ...editingProject,
+                        [fieldName]: e.target.value
+                      });
+                    }}
+                    placeholder="Введите текст с новой строки..."
+                  />
+                </div>
+              )}
+            </div>
+
+            <div className="pt-3 border-t border-white/10 flex justify-end gap-2.5">
+              <button
+                type="button"
+                onClick={() => setInlineEditSection(null)}
+                className="cursor-pointer bg-[#E7C768] text-[#112335] font-black text-xs px-5 py-3 rounded-xl hover:bg-[#d6b75c] active:scale-98 transition flex items-center gap-1.5"
+              >
+                ✅ Применить и закрыть
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      <EmployerAIAssistant />
     </div>
   );
 }

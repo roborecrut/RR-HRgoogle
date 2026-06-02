@@ -6,6 +6,7 @@
 import React, { useState, useEffect, useRef } from "react";
 import { useRouter } from "../components/RouterContext";
 import Mascot from "../components/Mascot";
+import Markdown from "react-markdown";
 import { JobProject, Message } from "../types";
 import {
   Briefcase,
@@ -384,7 +385,9 @@ export default function JobVacancyLanding() {
                           : "bg-gradient-to-r from-[#FF1A1A] to-[#E54C00] text-white rounded-tr-none shadow"
                       }`}
                     >
-                      {m.text}
+                      <div className="markdown-body">
+                        <Markdown>{m.text}</Markdown>
+                      </div>
                     </div>
                     <span className="text-[8px] text-slate-400 font-mono mt-0.5 block px-1">
                       {m.timestamp}

@@ -6,6 +6,7 @@
 import React, { useState, useEffect, useRef } from "react";
 import { useRouter } from "../components/RouterContext";
 import Mascot from "../components/Mascot";
+import Markdown from "react-markdown";
 import { JobProject, Candidate, Message, TrainingBlock } from "../types";
 import {
   FileText,
@@ -36,76 +37,329 @@ import {
 
 const get20ChecklistQuestions = (role: string) => {
   const normRole = (role || "").toLowerCase();
+  
+  let selectQs: any[] = [];
+  let textQs: any[] = [];
+
   if (normRole.includes("продаж") || normRole.includes("торгов") || normRole.includes("клиент")) {
-    return [
-       "Оцените ваш опыт в активных продажах (в годах)",
-       "Работали ли вы с возражениями 'дорого', 'не интересно'?",
-       "Какими CRM-системами владеете на уровне уверенного пользователя?",
-       "Опишите ваш рекорд по сумме закрытой сделки за один месяц",
-       "Как вы определяете ЛПР (Лицо, принимающее решения) в компании?",
-       "Какой средний чек сделок был на вашем предыдущем месте?",
-       "Опыт ведения 'холодных' звонков (да/нет, сколько в день)",
-       "Умеете ли вы работать с воронками продаж?",
-       "Как вы реагируете на отказы клиентов по телефону?",
-       "Опыт подготовки коммерческих предложений (КП)",
-       "Знакомы ли вы с техникой продаж СПИН?",
-       "Как быстро вы обычно устанавливаете контакт с незнакомым клиентом?",
-       "Владеете ли вы навыками допродаж (cross-sell / up-sell)?",
-       "Опыт участия в тендерах или госзакупках",
-       "Какие ключевые метрики KPI у вас стояли ранее?",
-       "Готовы ли вы делать не менее 45 звонков в день?",
-       "Сталкивались ли вы с выгоранием в продажах, как справлялись?",
-       "Опыт проведения личных/презентационных встреч с клиентами",
-       "Знание телефонного этикета и грамотность устной речи",
-       "Почему именно сфера продаж привлекает вас больше всего?"
+    selectQs = [
+      {
+        question: "Какая основная цель первого ('холодного') звонка клиенту?",
+        type: "select",
+        options: [
+          "Сразу продать самый дорогой продукт",
+          "Завязать контакт, выявить ЛПР и договориться о встрече или следующем шаге",
+          "Попросить у клиента личный номер телефона его руководителя",
+          "Прочитать весь текст регламента до конца любой ценой"
+        ],
+        correctAnswer: "Завязать контакт, выявить ЛПР и договориться о встрече или следующем шаге"
+      },
+      {
+        question: "Если клиент говорит: 'Мне это сейчас не интересно', каков лучший ответ?",
+        type: "select",
+        options: [
+          "Сказать 'Хорошо, жаль' и сразу положить трубку",
+          "Уточнить: 'Понимаю вашу занятость. Подскажите, вы не заинтересованы именно в [ценность продукта] или просто нет времени?'",
+          "Спросить 'А почему вам не интересно то, что приносит миллионы?!'",
+          "Продолжать настойчиво читать скрипт без пауз"
+        ],
+        correctAnswer: "Уточнить: 'Понимаю вашу занятость. Подскажите, вы не заинтересованы именно в [ценность продукта] или просто нет времени?'"
+      },
+      {
+        question: "Что из перечисленного является базовым этапом классических продаж?",
+        type: "select",
+        options: [
+          "Покупка рекламы в Яндексе",
+          "Определение бюджетирования компании куратором",
+          "Отработка возражений и закрытие сделки",
+          "Перевод клиента на другого менеджера"
+        ],
+        correctAnswer: "Отработка возражений и закрытие сделки"
+      },
+      {
+        question: "Какая CRM-система наиболее популярна в СНГ для автоматизации продаж и контроля звонков?",
+        type: "select",
+        options: ["Jira", "Figma", "amoCRM", "Visual Studio Code"],
+        correctAnswer: "amoCRM"
+      },
+      {
+        question: "Как расшифровывается понятие 'ЛПР' в деловом мире?",
+        type: "select",
+        options: [
+          "Личный Помощник Руководителя",
+          "Лицо, принимающее решения",
+          "Локальный Представитель Робототехники",
+          "Лучший Продавец Региона"
+        ],
+        correctAnswer: "Лицо, принимающее решения"
+      },
+      {
+        question: "Что означает средний чек (Average Ticket) компании?",
+        type: "select",
+        options: [
+          "Длина квитанции в кассе",
+          "Общая выручка, разделенная на количество совершенных продаж за период",
+          "Максимальная стоимость одного товара в каталоге",
+          "Размер скидки для постоянных VIP-клиентов"
+        ],
+        correctAnswer: "Общая выручка, разделенная на количество совершенных продаж за период"
+      },
+      {
+        question: "Какой процент конверсии считается хорошим для холодной базы контактов?",
+        type: "select",
+        options: ["100% без исключений", "От 2% до 10% в зависимости от ниши", "Не более 0.01%", "Конверсию холодных баз невозможно замерить"],
+        correctAnswer: "От 2% до 10% в зависимости от ниши"
+      },
+      {
+        question: "Что такое апсейл (Up-sell) в торговой практике компании?",
+        type: "select",
+        options: [
+          "Снижение цены по купону стажера",
+          "Продажа клиенту более дорогой версии товара или дополнительного объема услуг",
+          "Возврат неиспользованного товара обратно поставщику",
+          "Отсутствие звонков в течение рабочего дня"
+        ],
+        correctAnswer: "Продажа клиенту более дорогой версии товара или дополнительного объема услуг"
+      },
+      {
+        question: "Какой инструмент помогает продавцу правильно вести сложный телефонный диалог?",
+        type: "select",
+        options: ["Калькулятор валют", "Интерактивный скрипт (регламент) продаж", "Юридический кодекс страны", "Поисковая система Google"],
+        correctAnswer: "Интерактивный скрипт (регламент) продаж"
+      },
+      {
+        question: "Что такое воронка продаж (Sales Funnel)?",
+        type: "select",
+        options: [
+          "Фильтр очистки базы данных",
+          "Путь, который проходит клиент от первого знакомства с продуктом до завершения сделки",
+          "Приспособление для переливания автомобильного масла",
+          "Список уволенных сотрудников отдела продаж"
+        ],
+        correctAnswer: "Путь, который проходит клиент от первого знакомства с продуктом до завершения сделки"
+      }
+    ];
+
+    textQs = [
+      { question: "Опишите ваш самый успешный опыт продаж из прошлой практики (или почему вы хотите работать в продажах).", type: "text" },
+      { question: "Как вы готовитесь к разговору с клиентом перед совершением звонка?", type: "text" },
+      { question: "Поясните своими словами сущность выявления потребностей клиента.", type: "text" },
+      { question: "Опишите ваш личный эффективный метод борьбы с эмоциональным выгоранием на работе.", type: "text" },
+      { question: "Как вы аргументируете клиенту ценность дорогостоящего продукта, не прибегая к скидкам?", type: "text" },
+      { question: "Что необходимо сделать менеджеру сразу после успешного завершения сложной продажи?", type: "text" },
+      { question: "Как вы будете восстанавливать личные показатели эффективности при спаде продаж?", type: "text" },
+      { question: "Какую роль в продажах играет дисциплина ведения базы клиентов в CRM-системе?", type: "text" },
+      { question: "Опишите, как вы реагируете на резкое возражение клиента со словами 'Мне ничего не нужно!'.", type: "text" },
+      { question: "Каковы ваши финансовые цели на данной вакансии на ближайшие 6 месяцев?", type: "text" }
     ];
   } else if (normRole.includes("разработ") || normRole.includes("it") || normRole.includes("програм") || normRole.includes("аналитик") || normRole.includes("тестир")) {
-    return [
-       "Основной стек технологий (языки, фреймворки)",
-       "Общий стаж коммерческой разработки/анализа (в годах)",
-       "Опыт работы в Agile/Scrum командах",
-       "Какими системами контроля версий (Git) вы пользуетесь?",
-       "Опишите самый технически сложный проект в вашей карьере",
-       "Опыт написания юнит-тестов (Unit tests)",
-       "Как вы относитесь к код-ревью (code review)?",
-       "Опыт работы со СУБД (PostgreSQL, MySQL, NoSQL)",
-       "Использовали ли вы брокеры сообщений (Kafka, RabbitMQ)?",
-       "Знакомы ли вы с архитектурными паттернами (MVC, Clean, Microservices)?",
-       "Использовали ли вы Docker или Kubernetes в проектах?",
-       "Каким планировщиком задач пользовались (Jira, Trello, Kaiten)?",
-       "Опыт работы с REST API или GraphQL",
-       "Разрабатывали ли вы автоматизированные скрипты миграции данных?",
-       "Как вы оцениваете трудоемкость новых задач (Story Points, часы)?",
-       "Умеете ли вы документировать написанный код (Swagger, JSDoc)?",
-       "Опыт проведения рефакторинга устаревшего кода",
-       "Приходилось ли вам работать с legacy-кодом, какие сложности были?",
-       "Уровень владения английским языком для чтения документации",
-       "Как вы следите за новыми трендами в вашей ИТ-специальности?"
+    selectQs = [
+      {
+        question: "Какая команда используется в Git для отправки локальных коммитов в удаленный репозиторий?",
+        type: "select",
+        options: ["git commit -m", "git push origin main", "git pull --all", "git clone https://"],
+        correctAnswer: "git push origin main"
+      },
+      {
+        question: "Что такое React в современной веб-разработке?",
+        type: "select",
+        options: [
+          "Реляционная база данных компании Oracle",
+          "Полноценная операционная система для серверов",
+          "Популярная JavaScript-библиотека для создания пользовательских интерфейсов",
+          "Облачный хостинг для запуска контейнеров"
+        ],
+        correctAnswer: "Популярная JavaScript-библиотека для создания пользовательских интерфейсов"
+      },
+      {
+        question: "Какое основное отличие TypeScript от стандартного JavaScript?",
+        type: "select",
+        options: [
+          "TS работает только в мобильных телефонах",
+          "TS добавляет строгую статистическую типизацию для раннего предотвращения ошибок",
+          "TS не поддерживает циклы и массивы",
+          "JavaScript работает медленнее ровно в 10 раз"
+        ],
+         correctAnswer: "TS добавляет строгую статистическую типизацию для раннего предотвращения ошибок"
+      },
+      {
+        question: "What is DBMS in the context of information architectures?",
+        type: "select",
+        options: ["Database Management System", "Detailed Binary Mail Service", "Distributed Board Matching Script", "Double Band Memory Selector"],
+        correctAnswer: "Database Management System"
+      },
+      {
+        question: "Какое расширение файлов веб-страниц по умолчанию используется в React-проектах с TypeScript?",
+        type: "select",
+        options: [".css", ".html", ".tsx", ".zip"],
+        correctAnswer: ".tsx"
+      },
+      {
+        question: "Что такое Docker в процессах CI/CD команд разработки?",
+        type: "select",
+        options: [
+          "Игровая консоль со встроенными тестами",
+          "Платформа контейнеризации приложений, упаковывающая код со всеми зависимостями в один образ",
+          "Кабель для подключения монитора к серверной стойке",
+          "Язык стилизации CSS-карточек"
+        ],
+        correctAnswer: "Платформа контейнеризации приложений, упаковывающая код со всеми зависимостями в один образ"
+      },
+      {
+        question: "Какая HTTP-методология используется для полного обновления данных в REST API?",
+        type: "select",
+        options: ["GET", "DELETE", "PUT", "PATCH"],
+        correctAnswer: "PUT"
+      },
+      {
+        question: "Какова основная задача юнит-тестов (Unit Tests)?",
+        type: "select",
+        options: [
+          "Замена ручного тестирования всего интерфейса",
+          "Проверка корректности работы отдельных изолированных единиц/функций исходного кода",
+          "Сбор аналитики о пользователях системы",
+          "Автоматическая загрузка обновленного ПО на сервера"
+        ],
+        correctAnswer: "Проверка корректности работы отдельных изолированных единиц/функций исходного кода"
+      },
+      {
+        question: "Что означает аббревиатура DRY в программировании?",
+        type: "select",
+        options: [
+          "Do Repeat Yourself",
+          "Don't Repeat Yourself (не повторяй свой собственный код)",
+          "Data Ready Yes",
+          "Developer Real Youth"
+        ],
+        correctAnswer: "Don't Repeat Yourself (не повторяй свой собственный код)"
+      },
+      {
+        question: "Каким инструментом чаще всего пользуются для описания структуры REST API?",
+        type: "select",
+        options: ["Photoshop", "Swagger", "Notepad", "Excel"],
+        correctAnswer: "Swagger"
+      }
+    ];
+
+    textQs = [
+      { question: "Опишите ваш основной стек технологий и опыт его коммерческого использования.", type: "text" },
+      { question: "Como вы организуете процесс поиска и исправления сложной логической ошибки в коде?", type: "text" },
+      { question: "Поясните разницу между реляционными и нереляционными базами данных из вашего опыта.", type: "text" },
+      { question: "Как вы относитесь к переработкам перед релизами и как оптимизируете свое рабочее время?", type: "text" },
+      { question: "Опишите самый запоминающийся проект, который вы реализовали лично или в команде.", type: "text" },
+      { question: "Что для вас идеальное проведение код-ревью в дружной команде?", type: "text" },
+      { question: "Как вы оцениваете трудоемкость новых технических задач?", type: "text" },
+      { question: "Опишите ваш опыт работы под распределенной системой контроля версий Git.", type: "text" },
+      { question: "Как вы изучаете новые стандарты веб-технологий или фреймворки?", type: "text" },
+      { question: "Каковы ваши профессиональные ожидания от нашей команды инженеров?", type: "text" }
     ];
   } else {
-    return [
-       "Общий опыт работы на аналогичной должности (в годах)",
-       "Ваши ключевые должностные обязанности на прошлом месте",
-       "Какое программное обеспечение вы используете повседневно?",
-       "Опишите ваше самое главное достижение на предыдущей работе",
-       "Каким образом вы планируете свой рабочий день?",
-       "Умеете ли вы работать в команде над общими KPI?",
-       "Как вы решаете спорные ситуации с коллегами?",
-       "Готовы ли вы к интенсивному обучению в первые две недели?",
-       "Опыт работы с отчетностью и документооборотом",
-       "Какие навыки считаете своими сильными сторонами?",
-       "В чем видите свои зоны роста (слабые стороны)?",
-       "Как вы справляетесь с многозадачностью?",
-       "Опыт ведения деловой переписки и электронной почты",
-       "Знакомы ли вы с регламентами информационной безопасности?",
-       "Занимались ли вы наставничеством или помощью новичкам?",
-       "Как вы относитесь к регулярному контролю качества со стороны руководства?",
-       "Какие ожидания у вас от корпоративной культуры нашей компании?",
-       "Ваша готовность к работе в режиме высокой ответственности",
-       "Какие профессиональные курсы вы проходили за последний год?",
-       "Почему вы хотите работать именно на этой позиции у нас?"
+    selectQs = [
+      {
+        question: "Какой стандартный график работы является классическим?",
+        type: "select",
+        options: ["2/2 круглые сутки", "5/2 по 8 часов в день", "7/0 без полноценных выходных", "1/3 суточный"],
+        correctAnswer: "5/2 по 8 часов в день"
+      },
+      {
+        question: "Что такое корпоративная почта сотрудника?",
+        type: "select",
+        options: [
+          "Развлекательный почтовый ящик семьи",
+          "Официальный электронный ящик в домене компании для рабочей переписки",
+          "Облачные файлы на домашнем диске",
+          "Брошюры в печатном ящике у входа в офис"
+        ],
+        correctAnswer: "Официальный электронный ящик в домене компании для рабочей переписки"
+      },
+      {
+        question: "Как вести себя при возникновении спорного момента с коллегами?",
+        type: "select",
+        options: [
+          "Игнорировать человека и заблокировать контакт",
+          "Проявить вежливость, спокойно выявить причину спора и обсудить конструктивные пути решения",
+          "Громко высказать обидные претензии на общем собрании",
+          "Попросить куратора немедленно уволить оппонента"
+        ],
+        correctAnswer: "Проявить вежливость, спокойно выявить причину спора и обсудить конструктивные пути решения"
+      },
+      {
+        question: "Какая основная задача онбординга новых стажеров?",
+        type: "select",
+        options: ["Проверка терпения новичков", "Плавная и быстрая адаптация стажера в рабочие инструменты, ценности и регламенты", "Организация корпоративных праздников", "Разъяснение личных хобби руководства"],
+        correctAnswer: "Плавная и быстрая адаптация стажера в рабочие инструменты, ценности и регламенты"
+      },
+      {
+        question: "Что делать с конфиденциальной внутренней базой знаний компании?",
+        type: "select",
+        options: [
+          "Поделиться ею в открытом доступе на форумах",
+          "Строго соблюдать коммерческую тайну и использовать только для выполнения служебных задач",
+          "Разослать друзьям для ознакомления",
+          "Удалить всю базу из рабочего пространства"
+        ],
+        correctAnswer: "Строго соблюдать коммерческую тайну и использовать только для выполнения служебных задач"
+      },
+      {
+        question: "Что такое дедлайн в организации работы сотрудника?",
+        type: "select",
+        options: ["Конец рабочей года", "Крайний срок (дата и время) выполнения поставленной задачи", "Утренний созвон с напарниками", "Начало обеденного часа"],
+        correctAnswer: "Крайний срок (дата и время) выполнения поставленной задачи"
+      },
+      {
+        question: "Какая государственная система фиксирует статус профессионального дохода (Самозанятые)?",
+        type: "select",
+        options: ["Яндекс Почта", "Приложение 'Мой Налог'", "Государственная система здравоохранения РФ", "Сбербанк Онлайн"],
+        correctAnswer: "Приложение 'Мой Налог'"
+      },
+      {
+        question: "Зачем сотрудникам нужна регулярная обратная связь от руководителей?",
+        type: "select",
+        options: [
+          "Для выговоров и снижения премий",
+          "Для объективного понимания своих успехов, зон роста и повышения профессионализма",
+          "Никакой роли ОС не играет",
+          "Исключительно ради ведения отчетности"
+        ],
+        correctAnswer: "Для объективного понимания своих успехов, зон роста и повышения профессионализма"
+      },
+      {
+        question: "Что делать при технической неисправности личного оборудования в рабочее время?",
+        type: "select",
+        options: [
+          "Незамедлительно сообщить своему куратору или наставнику и согласовать действия",
+          "Закрыть сессию окон и пойти заниматься личными хобби",
+          "Ждать окончания смены, надеясь, что никто не заметит",
+          "Попросить у коллег дать вам пароли от их компьютеров"
+        ],
+        correctAnswer: "Незамедлительно сообщить своему куратору или наставнику и согласовать действия"
+      },
+      {
+        question: "Какой формат файлов является де-факто международным стандартом для сохранения резюме?",
+        type: "select",
+        options: [".exe", ".zip", ".pdf", ".png"],
+        correctAnswer: ".pdf"
+      }
+    ];
+
+    textQs = [
+      { question: "Поделитесь вашим общим профессиональным стажем на аналогичных ролях.", type: "text" },
+      { question: "Каким образом вы привыкли планировать свой рабочий день?", type: "text" },
+      { question: "Что для вас является залогом успешной командной работы?", type: "text" },
+      { question: "Опишите ваш самый запоминающийся опыт преодоления рабочих затруднений.", type: "text" },
+      { question: "Как вы осваиваете новые рабочие программы и служебные инструкции?", type: "text" },
+      { question: "Опишите ваше отношение к регулярной оценке качества вашей работы.", type: "text" },
+      { question: "Какими способами вы боретесь с повседневным стрессом на рабочем месте?", type: "text" },
+      { question: "Как вы организуете хранение своих профессиональных записей и планов?", type: "text" },
+      { question: "Какую профессиональную планку на этой работе вы ставите перед собой на год?", type: "text" },
+      { question: "Почему наша открытая вакансия заинтересовала вас в данный момент?", type: "text" }
     ];
   }
+
+  const shuffledSelect = [...selectQs].sort(() => Math.random() - 0.5).slice(0, 10);
+  const shuffledText = [...textQs].sort(() => Math.random() - 0.5).slice(0, 10);
+  const combined = [...shuffledSelect, ...shuffledText];
+  return combined.sort(() => Math.random() - 0.5);
 };
 
 const getSmartDefaultAnswer = (q: string, role: string): string => {
@@ -545,7 +799,7 @@ export default function CandidateFlow() {
   const [situationsAnalysing, setSituationsAnalysing] = useState(false);
   
   // 20 Checklist questions state
-  const [checklistAnswers, setChecklistAnswers] = useState<{ question: string; answer: string }[]>([]);
+  const [checklistAnswers, setChecklistAnswers] = useState<{ question: string; answer: string; type?: string; options?: string[] }[]>([]);
 
   // 3 situational cases
   const [situationsList, setSituationsList] = useState<any[]>([]);
@@ -646,9 +900,13 @@ export default function CandidateFlow() {
     if (candidate && checklistAnswers.length === 0) {
       const role = candidate.roleName || project?.roleName || "Менеджер по продажам";
       const qs = get20ChecklistQuestions(role);
-      setChecklistAnswers(qs.map(q => ({
-        question: q,
-        answer: getSmartDefaultAnswer(q, role)
+      setChecklistAnswers(qs.map(qObj => ({
+        question: qObj.question,
+        type: qObj.type,
+        options: qObj.options,
+        correctAnswer: qObj.correctAnswer,
+        userAnswer: qObj.type === "select" ? qObj.options?.[1] || "" : getSmartDefaultAnswer(qObj.question, role),
+        answer: qObj.type === "select" ? qObj.options?.[1] || "" : getSmartDefaultAnswer(qObj.question, role)
       })));
       initSituations(role);
     }
@@ -820,6 +1078,63 @@ export default function CandidateFlow() {
   const [quizSubmitted, setQuizSubmitted] = useState(false);
   const [quizMessage, setQuizMessage] = useState("");
   const [quizError, setQuizError] = useState(false);
+
+  // Training Exam states for hybrid 20 questions (10 select, 10 text)
+  const [trainingAnswers, setTrainingAnswers] = useState<any[]>([]);
+  const [trainingExamSubmitted, setTrainingExamSubmitted] = useState(false);
+  const [trainingExamFeedback, setTrainingExamFeedback] = useState("");
+  const [trainingExamScore, setTrainingExamScore] = useState(0);
+  const [trainingExamAnalysing, setTrainingExamAnalysing] = useState(false);
+
+  // Auto load active lesson's 20 quizzes
+  const bIdxLocal = getTrainingBlockIdx();
+  const currentBlockObj = candidate?.trainingPlan?.[bIdxLocal];
+  const activeLessonObj = currentBlockObj?.lessons?.[activeLessonIdx];
+
+  useEffect(() => {
+    if (activeLessonObj && activeLessonObj.quizzes) {
+      setTrainingAnswers(activeLessonObj.quizzes.map((q: any) => ({
+        ...q,
+        userAnswer: q.userAnswer || ""
+      })));
+      setTrainingExamSubmitted(activeLessonObj.isCompleted || false);
+      setTrainingExamFeedback(activeLessonObj.quizFeedback || "");
+      setTrainingExamScore(activeLessonObj.score || 0);
+    } else {
+      setTrainingAnswers([]);
+      setTrainingExamSubmitted(false);
+      setTrainingExamFeedback("");
+      setTrainingExamScore(0);
+    }
+  }, [activeLessonObj]);
+
+  const handleTrainingExamSubmit = async () => {
+    if (!candidate) return;
+    setTrainingExamAnalysing(true);
+    try {
+      const bIdx = getTrainingBlockIdx();
+      const res = await fetch("/api/evaluate-training-block", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          candidateId: candidate.id,
+          blockIndex: bIdx,
+          answers: trainingAnswers
+        })
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setTrainingExamScore(data.overallScore);
+        setTrainingExamFeedback(data.feedback);
+        setTrainingExamSubmitted(true);
+        await refreshCandidate();
+      }
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setTrainingExamAnalysing(false);
+    }
+  };
 
   const handleLessonQuizSubmit = () => {
     if (!candidate || !candidate.trainingPlan) return;
@@ -1756,16 +2071,49 @@ export default function CandidateFlow() {
                         </span>
                         <h4 className="text-xs font-bold text-white flex-1">{item.question}</h4>
                       </div>
-                      <input
-                        type="text"
-                        className="w-full bg-[#17344F] text-xs text-slate-150 p-2 border border-white/10 rounded-lg focus:outline-none focus:border-[#E7C768]"
-                        value={item.answer}
-                        onChange={(e) => {
-                          const updated = [...checklistAnswers];
-                          updated[idx].answer = e.target.value;
-                          setChecklistAnswers(updated);
-                        }}
-                      />
+                      {item.type === "select" ? (
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-2 pt-1">
+                          {item.options?.map((opt: string) => {
+                            const isSelected = (item.answer || "").trim().toLowerCase() === opt.trim().toLowerCase();
+                            return (
+                              <button
+                                key={opt}
+                                type="button"
+                                onClick={() => {
+                                  const updated = [...checklistAnswers] as any[];
+                                  updated[idx].answer = opt;
+                                  updated[idx].userAnswer = opt;
+                                  setChecklistAnswers(updated);
+                                }}
+                                className={`text-left p-2.5 rounded-lg border text-xs transition-all flex items-start gap-2 ${
+                                  isSelected
+                                    ? "bg-[#E7C768]/15 border-[#E7C768] text-white font-medium"
+                                    : "bg-white/5 border-white/10 text-slate-300 hover:bg-white/10"
+                                }`}
+                              >
+                                <span className={`w-3.5 h-3.5 rounded-full border shrink-0 mt-0.5 flex items-center justify-center ${
+                                  isSelected ? "border-[#E7C768]" : "border-slate-500"
+                                }`}>
+                                  {isSelected && <span className="w-1.5 h-1.5 rounded-full bg-[#E7C768]" />}
+                                </span>
+                                <span>{opt}</span>
+                              </button>
+                            );
+                          })}
+                        </div>
+                      ) : (
+                        <input
+                          type="text"
+                          className="w-full bg-[#17344F] text-xs text-slate-150 p-2 border border-white/10 rounded-lg focus:outline-none focus:border-[#E7C768]"
+                          value={item.answer}
+                          onChange={(e) => {
+                            const updated = [...checklistAnswers] as any[];
+                            updated[idx].answer = e.target.value;
+                            updated[idx].userAnswer = e.target.value;
+                            setChecklistAnswers(updated);
+                          }}
+                        />
+                      )}
                     </div>
                   ))}
                 </div>
@@ -2133,8 +2481,113 @@ export default function CandidateFlow() {
                         {lesson.content}
                       </div>
 
-                      {/* Lesson Quiz Form */}
-                      {lesson.quiz && (
+                      {/* Dynamic 20 Questions Lesson Quiz Form */}
+                      {activeLessonObj && activeLessonObj.quizzes && (
+                        <div className="space-y-6 border-t border-white/10 pt-6">
+                          <div className="flex items-center gap-2">
+                            <HelpCircle className="w-5 h-5 text-[#E7C768]" />
+                            <h4 className="font-bold text-xs text-[#E7C768] uppercase">ИИ-Экзамен по модулю (20 вопросов):</h4>
+                          </div>
+
+                          {/* Completed/Feedback Banner */}
+                          {trainingExamSubmitted && (
+                            <div className="bg-[#102A45]/80 p-5 rounded-2xl border border-[#E7C768]/30 space-y-3">
+                              <div className="flex items-center justify-between border-b border-white/10 pb-3">
+                                <span className="text-white font-bold text-xs">Итоговый результат аттестации:</span>
+                                <span className="text-[#E7C768] font-bold text-base font-mono">{trainingExamScore} из 100 баллов</span>
+                              </div>
+                              <p className="text-xs text-emerald-400 font-medium whitespace-pre-wrap">{trainingExamFeedback}</p>
+                              {candidate?.currentStage === "certified" && (
+                                <div className="p-3 bg-emerald-500/10 border border-emerald-500/30 rounded-xl text-[11px] text-emerald-400 font-bold animate-pulse text-center">
+                                  🎉 Поздравляем! Вы полностью завершили программу обучения и сертифицированы компанией! Работодатель уже получил Ваши результаты.
+                                </div>
+                              )}
+                            </div>
+                          )}
+
+                          {/* 20 Interleaved questions board */}
+                          <div className="space-y-4 max-h-[460px] overflow-y-auto pr-2">
+                            {trainingAnswers.map((item, idx) => (
+                              <div key={idx} className="bg-black/25 p-4 rounded-xl border border-white/5 space-y-2 text-left animate-fadeIn">
+                                <div className="flex gap-2">
+                                  <span className="text-xs font-mono font-bold text-[#E7C768] bg-[#E7C768]/15 w-5 h-5 rounded flex items-center justify-center shrink-0">
+                                    {idx + 1}
+                                  </span>
+                                  <h5 className="text-xs font-bold text-white leading-tight">{item.question}</h5>
+                                </div>
+
+                                {item.type === "select" ? (
+                                  <div className="grid grid-cols-1 md:grid-cols-2 gap-2 pt-1.5">
+                                    {item.options?.map((opt: string) => {
+                                      const isSelected = (item.userAnswer || "").trim().toLowerCase() === opt.trim().toLowerCase();
+                                      return (
+                                        <button
+                                          key={opt}
+                                          type="button"
+                                          disabled={trainingExamSubmitted}
+                                          onClick={() => {
+                                            const updated = [...trainingAnswers];
+                                            updated[idx].userAnswer = opt;
+                                            setTrainingAnswers(updated);
+                                          }}
+                                          className={`text-left p-2 rounded-lg border text-[11px] transition-all flex items-start gap-2 ${
+                                            isSelected
+                                              ? "bg-[#E7C768]/15 border-[#E7C768] text-white font-medium"
+                                              : "bg-white/5 border-white/10 text-slate-300 hover:bg-white/10 disabled:hover:bg-white/5"
+                                          }`}
+                                        >
+                                          <span className={`w-3 h-3 rounded-full border shrink-0 mt-0.5 flex items-center justify-center ${
+                                            isSelected ? "border-[#E7C768]" : "border-slate-500"
+                                          }`}>
+                                            {isSelected && <span className="w-1 h-1 rounded-full bg-[#E7C768]" />}
+                                          </span>
+                                          <span>{opt}</span>
+                                        </button>
+                                      );
+                                    })}
+                                  </div>
+                                ) : (
+                                  <textarea
+                                    disabled={trainingExamSubmitted}
+                                    placeholder="Ваш развернутый ответ..."
+                                    className="w-full bg-[#17344F] text-xs text-slate-150 p-2.5 border border-white/10 rounded-lg focus:outline-none focus:border-[#E7C768]"
+                                    rows={2}
+                                    value={item.userAnswer || ""}
+                                    onChange={(e) => {
+                                      const updated = [...trainingAnswers];
+                                      updated[idx].userAnswer = e.target.value;
+                                      setTrainingAnswers(updated);
+                                    }}
+                                  />
+                                )}
+                              </div>
+                            ))}
+                          </div>
+
+                          {/* Submit buttons block */}
+                          {!trainingExamSubmitted && (
+                            <button
+                              type="button"
+                              onClick={handleTrainingExamSubmit}
+                              disabled={trainingExamAnalysing}
+                              className="cursor-pointer w-full bg-gradient-to-r from-[#FF1A1A] to-[#E54C00] text-white font-bold py-3 rounded-xl text-xs flex items-center justify-center gap-1.5 hover:opacity-95 shadow active:scale-98 transition-all"
+                            >
+                              {trainingExamAnalysing ? (
+                                <>
+                                  <Loader className="w-4 h-4 animate-spin" /> Автоматически оцениваем ответы в ИИ-ассистенте...
+                                </>
+                              ) : (
+                                <>
+                                  <ShieldCheck className="w-4 h-4" /> Завершить экзамен и сдать на ИИ-проверку
+                                </>
+                              )}
+                            </button>
+                          )}
+                        </div>
+                      )}
+
+                      {/* Fallback Legacy Single Lesson Quiz Form */}
+                      {lesson.quiz && !lesson.quizzes && (
                         <div className="space-y-4 border-t border-white/10 pt-6">
                           <div className="flex items-center gap-2">
                             <HelpCircle className="w-5 h-5 text-[#E7C768]" />
@@ -2165,14 +2618,12 @@ export default function CandidateFlow() {
                             </div>
                           </div>
 
-                          {/* Quiz notification message banner */}
                           {quizMessage && (
                             <div className={`p-4 text-xs rounded-xl border ${quizError ? "bg-[#FF4C4C]/10 text-[#FF4C4C] border-[#FF4C4C]/20" : "bg-emerald-950/40 text-emerald-400 border border-emerald-500/20"}`}>
                                {quizMessage}
                             </div>
                           )}
 
-                          {/* Submit controls */}
                           <div className="flex gap-2">
                             {!quizSubmitted && (
                               <button
@@ -2374,7 +2825,9 @@ export default function CandidateFlow() {
                         ? "bg-[#1E4468]/65 text-white border border-white/5 rounded-tl-none" 
                         : "bg-gradient-to-r from-[#FF1A1A] to-[#E54C00] text-white rounded-tr-none"
                     }`}>
-                      {msg.text}
+                      <div className="markdown-body">
+                        <Markdown>{msg.text}</Markdown>
+                      </div>
                     </div>
                   </div>
                 );

@@ -218,31 +218,106 @@ export const CompanyView: React.FC<SectionProps> = ({ project, onChangeText, isE
   const bullets = text.split("\n").map(l => l.replace(/^[•\s-*]+/, "").trim()).filter(Boolean);
 
   const stats = [
-    { label: "Клиентов в СНГ", value: "350+" },
-    { label: "ИИ-диалогов в сутки", value: "15 000+" },
-    { label: "Год основания", value: "2021" }
+    { label: project.statsLabelClients || "Клиентов в СНГ", value: project.statsValClients || "350+" },
+    { label: project.statsLabelDialogs || "ИИ-диалогов в сутки", value: project.statsValDialogs || "15 000+" },
+    { label: project.statsLabelFounded || "Год основания", value: project.statsValFounded || "2021" }
   ];
+
+  const mission = project.missionText || "Наша миссия — избавить людей от рутины в холодных звонках, автоматизировав базовую квалификацию лидов. Каждый день мы упрощаем работу сотрудникам отделов продаж по всему миру.";
 
   return (
     <div className="space-y-6">
       {isEditable ? (
-        <div className="space-y-3 bg-[#12283C]/80 border border-white/5 rounded-2xl p-5">
-          <label className="text-xs font-bold text-amber-300 block">Презентация компании на лендинге:</label>
-          <textarea
-            className="w-full bg-[#112335]/90 text-xs p-3 rounded-xl border border-white/10 text-white font-mono focus:outline-[#E7C768]"
-            rows={5}
-            value={text}
-            onChange={(e) => onChangeText?.("companyText", e.target.value)}
-            placeholder="Каждый факт о масштабе пишите с новой строки для красивой верстки"
-          />
+        <div className="space-y-4 bg-[#12283C]/80 border border-white/5 rounded-2xl p-5">
+          <div className="space-y-2">
+            <label className="text-xs font-bold text-amber-300 block">Презентация компании на лендинге:</label>
+            <textarea
+              className="w-full bg-[#112335]/90 text-xs p-3 rounded-xl border border-white/10 text-white font-mono focus:outline-[#E7C768]"
+              rows={4}
+              value={text}
+              onChange={(e) => onChangeText?.("companyText", e.target.value)}
+              placeholder="Каждый факт о масштабе пишите с новой строки для красивой верстки"
+            />
+          </div>
+
+          <div className="space-y-2">
+            <label className="text-xs font-bold text-amber-300 block">Цитата / Миссия компании:</label>
+            <textarea
+              className="w-full bg-[#112335]/90 text-xs p-2.5 rounded-xl border border-white/10 text-white focus:outline-[#E7C768]"
+              rows={2}
+              value={mission}
+              onChange={(e) => onChangeText?.("missionText", e.target.value)}
+              placeholder="Опишите глобальную миссию компании"
+            />
+          </div>
+
+          <div className="border-t border-white/5 pt-3">
+            <span className="text-[10px] font-mono uppercase tracking-wider text-amber-400 font-bold block mb-2">🔥 Настройка 3-х счетчиков/характеристик</span>
+            
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+              <div className="bg-[#112335]/50 p-2.5 border border-white/5 rounded-xl space-y-1.5">
+                <span className="text-[9px] text-slate-400 block font-bold">Счетчик 1 (Клиенты):</span>
+                <input
+                  type="text"
+                  className="w-full bg-[#112335] text-xs p-1.5 rounded-lg border border-white/10 text-white font-bold"
+                  value={project.statsValClients !== undefined && project.statsValClients !== null ? project.statsValClients : "350+"}
+                  onChange={(e) => onChangeText?.("statsValClients", e.target.value)}
+                  placeholder="Значение"
+                />
+                <input
+                  type="text"
+                  className="w-full bg-[#112335] text-[10px] p-1.5 rounded-lg border border-white/10 text-slate-350"
+                  value={project.statsLabelClients !== undefined && project.statsLabelClients !== null ? project.statsLabelClients : "Клиентов в СНГ"}
+                  onChange={(e) => onChangeText?.("statsLabelClients", e.target.value)}
+                  placeholder="Подпись"
+                />
+              </div>
+
+              <div className="bg-[#112335]/50 p-2.5 border border-white/5 rounded-xl space-y-1.5">
+                <span className="text-[9px] text-slate-400 block font-bold">Счетчик 2 (ИИ диалоги):</span>
+                <input
+                  type="text"
+                  className="w-full bg-[#112335] text-xs p-1.5 rounded-lg border border-white/10 text-white font-bold"
+                  value={project.statsValDialogs !== undefined && project.statsValDialogs !== null ? project.statsValDialogs : "15 000+"}
+                  onChange={(e) => onChangeText?.("statsValDialogs", e.target.value)}
+                  placeholder="Значение"
+                />
+                <input
+                  type="text"
+                  className="w-full bg-[#112335] text-[10px] p-1.5 rounded-lg border border-white/10 text-slate-350"
+                  value={project.statsLabelDialogs !== undefined && project.statsLabelDialogs !== null ? project.statsLabelDialogs : "ИИ-диалогов в сутки"}
+                  onChange={(e) => onChangeText?.("statsLabelDialogs", e.target.value)}
+                  placeholder="Подпись"
+                />
+              </div>
+
+              <div className="bg-[#112335]/50 p-2.5 border border-white/5 rounded-xl space-y-1.5">
+                <span className="text-[9px] text-slate-400 block font-bold">Счетчик 3 (Основание):</span>
+                <input
+                  type="text"
+                  className="w-full bg-[#112335] text-xs p-1.5 rounded-lg border border-white/10 text-white font-bold"
+                  value={project.statsValFounded !== undefined && project.statsValFounded !== null ? project.statsValFounded : "2021"}
+                  onChange={(e) => onChangeText?.("statsValFounded", e.target.value)}
+                  placeholder="Значение"
+                />
+                <input
+                  type="text"
+                  className="w-full bg-[#112335] text-[10px] p-1.5 rounded-lg border border-white/10 text-slate-350"
+                  value={project.statsLabelFounded !== undefined && project.statsLabelFounded !== null ? project.statsLabelFounded : "Год основания"}
+                  onChange={(e) => onChangeText?.("statsLabelFounded", e.target.value)}
+                  placeholder="Подпись"
+                />
+              </div>
+            </div>
+          </div>
         </div>
       ) : (
         <div className="space-y-5">
           {/* Quote Block */}
           <div className="bg-gradient-to-r from-[#12283C] to-[#1A344D] border-l-4 border-[#E7C768] p-4 rounded-r-2xl text-left">
             <span className="text-2xl font-serif text-[#E7C768] leading-none select-none">“</span>
-            <p className="text-xs italic text-slate-200 mt-1 font-sans">
-              Наша миссия — избавить людей от рутины в холодных звонках, автоматизировав базовую квалификацию лидов. Каждый день мы упрощаем работу сотрудникам отделов продаж по всему миру.
+            <p className="text-xs italic text-slate-200 mt-1 font-sans leading-relaxed">
+              {mission}
             </p>
           </div>
 

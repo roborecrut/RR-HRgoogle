@@ -10,6 +10,15 @@ export interface SupabaseConfig {
   isConnected: boolean;
 }
 
+export interface TrainingQuiz {
+  question: string;
+  type: "select" | "text";
+  options?: string[];
+  correctAnswer?: string;
+  userAnswer?: string;
+  isCorrect?: boolean;
+}
+
 export interface TrainingLesson {
   id: string;
   title: string;
@@ -19,8 +28,10 @@ export interface TrainingLesson {
     options: string[];
     answerIndex: number;
   };
+  quizzes?: TrainingQuiz[];
   isCompleted: boolean;
   score?: number;
+  quizFeedback?: string;
 }
 
 export interface TrainingBlock {
@@ -89,6 +100,15 @@ export interface JobProject {
   logoUrl?: string;
   tasksActivityText?: string;
   cabinetTabsText?: string;
+  
+  // Mission & stats
+  missionText?: string;
+  statsValClients?: string;
+  statsLabelClients?: string;
+  statsValDialogs?: string;
+  statsLabelDialogs?: string;
+  statsValFounded?: string;
+  statsLabelFounded?: string;
 }
 
 export interface Message {

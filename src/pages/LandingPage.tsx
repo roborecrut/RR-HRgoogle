@@ -8,6 +8,7 @@ import { useRouter } from "../components/RouterContext";
 import Mascot from "../components/Mascot";
 import { BASIC_SPECIALTIES } from "../types";
 import AuthModal from "../components/AuthModal";
+import EmployerAIAssistant from "../components/EmployerAIAssistant";
 import { 
   Users, 
   Award, 
@@ -847,6 +848,7 @@ export default function LandingPage() {
       </footer>
 
       <AuthModal isOpen={isAuthModalOpen} onClose={() => setIsAuthModalOpen(false)} />
+      <EmployerAIAssistant />
     </div>
   );
 }
