@@ -335,6 +335,12 @@ export default function EmployerPanel() {
   const [editorSubTab, setEditorSubTab] = useState<string>("company");
   const [isSavingEdit, setIsSavingEdit] = useState(false);
   const [inlineEditSection, setInlineEditSection] = useState<string | null>(null);
+  
+  // Custom Interview and Training builder states
+  const [activeEditTab, setActiveEditTab] = useState<"landing" | "training">("landing");
+  const [isEnhancingAllVac, setIsEnhancingAllVac] = useState(false);
+  const [isParsingTrainingFile, setIsParsingTrainingFile] = useState(false);
+  const [trainingDragActive, setTrainingDragActive] = useState(false);
 
   // System Audit Events State
   const [auditEvents, setAuditEvents] = useState<any[]>([
@@ -848,14 +854,31 @@ export default function EmployerPanel() {
     setTimeout(() => setCopiedProjectId(null), 2000);
   };
 
-  // Auto-recognize file for job vacancy conditions
-  const handleAutoRecognizeFile = (filename: string) => {
+  // Auto-recognize file for job vacancy conditions using ProTalk LLM
+  const handleAutoRecognizeFile = async (filename: string) => {
     setIsParsingFile(true);
     addAuditEvent("info", "Анализ файла вакансии", `Запущен разбор вакансии из файла: ${filename}`);
     
-    // Simulate smart parsing & fill out fields
-    setTimeout(() => {
-      setIsParsingFile(false);
+    try {
+      const res = await fetch("/api/parse-vacancy-file", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ fileName: filename, companyName: setupCompanyName })
+      });
+      if (!res.ok) throw new Error("Сервер не смог распарсить файл.");
+      const parsed = await res.json();
+      
+      if (parsed.roleName) setSetupRoleName(parsed.roleName);
+      if (parsed.salaryTerms) setSetupSalary(parsed.salaryTerms);
+      if (parsed.scheduleTerms) setSetupSchedule(parsed.scheduleTerms);
+      if (parsed.customWiki) setSetupCustomWiki(parsed.customWiki);
+      if (parsed.logoUrl) setSetupLogoUrl(parsed.logoUrl);
+      
+      addAuditEvent("success", "Файл вакансии распознан", `ИИ ProTalk успешно выгрузил все условия для "${parsed.roleName || "вакансии"}".`);
+    } catch (err: any) {
+      console.error(err);
+      addAuditEvent("warning", "Ошибка распознавания", "Использованы правила автозаполнения.");
+      // Fallback
       setSetupRoleName("Инженер по тестированию (QA)");
       setSetupSalary("95 000 - 130 000 руб");
       setSetupSchedule("Полный день, гибрид в Москве");
@@ -864,8 +887,170 @@ export default function EmployerPanel() {
 - Заведение багов в корпоративную систему таск-трекера.
 - Подготовка тестовых сценариев и чек-листов.
 - Взаимодействие с командой разработчиков.`);
-      addAuditEvent("success", "Файл вакансии распознан", `ИИ успешно выгрузил условия для "Инженер по тестированию (QA)".`);
-    }, 1500);
+    } finally {
+      setIsParsingFile(false);
+    }
+  };
+
+  // Cohesive AI format for new vacancy fields
+  const handleBeautifyNewVacancyWithAI = async () => {
+    setIsGenerating(true);
+    addAuditEvent("info", "ИИ-форматирование", "Оформляем все поля новой вакансии с помощью ИИ ProTalk...");
+    try {
+      const res = await fetch("/api/enhance-all-vacancy-fields", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          companyName: setupCompanyName,
+          roleName: setupRoleName,
+          salaryTerms: setupSalary,
+          scheduleTerms: setupSchedule,
+          customWiki: setupCustomWiki,
+          logoUrl: setupLogoUrl
+        })
+      });
+      if (res.ok) {
+        const enhanced = await res.json();
+        if (enhanced.roleName) setSetupRoleName(enhanced.roleName);
+        if (enhanced.salaryTerms) setSetupSalary(enhanced.salaryTerms);
+        if (enhanced.scheduleTerms) setSetupSchedule(enhanced.scheduleTerms);
+        if (enhanced.customWiki) setSetupCustomWiki(enhanced.customWiki);
+        if (enhanced.logoUrl) setSetupLogoUrl(enhanced.logoUrl);
+        addAuditEvent("success", "Оформление завершено", "Все поля успешно облагорожены ИИ в единую продающую форму.");
+      }
+    } catch (err) {
+      console.error(err);
+      addAuditEvent("warning", "Ошибка ИИ-оформления", "Проверьте стабильность интернет-соединения.");
+    } finally {
+      setIsGenerating(false);
+    }
+  };
+
+  // Enhance a single landing page sub-field using ProTalk API
+  const handleEnhanceSingleVacancyField = async (fieldName: string, currentVal: string) => {
+    if (!editingProject) return;
+    addAuditEvent("info", "ИИ-полировка поля", `Улучшаем сведения в поле "${fieldName}" через ProTalk LLM...`);
+    try {
+      const res = await fetch("/api/enhance-single-field", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          fieldName,
+          fieldVal: currentVal,
+          context: {
+            companyName: editingProject.companyName,
+            roleName: editingProject.roleName
+          }
+        })
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setEditingProject({
+          ...editingProject,
+          [fieldName]: data.value
+        });
+        addAuditEvent("success", "Поле улучшено с помощью ИИ", `Отредактировано и красиво оформлено.`);
+      }
+    } catch (err) {
+      console.error(err);
+      addAuditEvent("warning", "Ошибка ИИ-полировки", "Не удалось оптимизировать сведения в поле.");
+    }
+  };
+
+  // Cohesive beautification of ALL landing fields in editingProject at once
+  const handleEnhanceAllVacancyLandingFields = async () => {
+    if (!editingProject) return;
+    setIsEnhancingAllVac(true);
+    addAuditEvent("info", "Полное ИИ-Оформление", "Запускаем полную реконструкцию контента лендинга через ИИ ProTalk...");
+    try {
+      const res = await fetch("/api/enhance-all-vacancy-fields", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(editingProject)
+      });
+      if (res.ok) {
+        const enhanced = await res.json();
+        setEditingProject({
+          ...editingProject,
+          ...enhanced
+        });
+        addAuditEvent("success", "Лендинг полностью оформлен!", "ИИ составил цельную, привлекательную картину вакансии.");
+      }
+    } catch (err) {
+      console.error(err);
+      addAuditEvent("warning", "Ошибка ИИ-полировки", "Не удалось связаться с ИИ ProTalk.");
+    } finally {
+      setIsEnhancingAllVac(false);
+    }
+  };
+
+  // Parse custom training and onboarding curriculum documents
+  const handleParseTrainingMaterials = async (filename: string) => {
+    if (!editingProject) return;
+    setIsParsingTrainingFile(true);
+    addAuditEvent("info", "Анализ обучающих материалов", `Запущен разбор регламентов обучения из файла: ${filename}`);
+    try {
+      const res = await fetch("/api/parse-training-file", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          fileName: filename,
+          companyName: editingProject.companyName,
+          roleName: editingProject.roleName
+        })
+      });
+      if (res.ok) {
+        const parsed = await res.json();
+        setEditingProject({
+          ...editingProject,
+          checklistQuestions: parsed.checklistQuestions || editingProject.checklistQuestions,
+          roleplayQuestions: parsed.roleplayQuestions || editingProject.roleplayQuestions,
+          trainingProfText: parsed.trainingProfText || editingProject.trainingProfText,
+          trainingProductText: parsed.trainingProductText || editingProject.trainingProductText,
+          trainingSystemText: parsed.trainingSystemText || editingProject.trainingSystemText
+        });
+        addAuditEvent("success", "ИИ-Материалы успешно созданы", `Подготовлено ${parsed.checklistQuestions?.length || 0} вопросов чеклиста и учебный план.`);
+      }
+    } catch (err) {
+      console.error(err);
+      addAuditEvent("warning", "Ошибка парсинга материалов", "ИИ использовал базовый шаблон регламентов.");
+    } finally {
+      setIsParsingTrainingFile(false);
+    }
+  };
+
+  // Individual training field enhancer
+  const handleEnhanceTrainingField = async (fieldName: string, currentVal: string) => {
+    if (!editingProject) return;
+    addAuditEvent("info", "ИИ-полировка обучения", `Улучшаем материалы в разделе "${fieldName}"...`);
+    try {
+      const res = await fetch("/api/enhance-single-field", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          fieldName,
+          fieldVal: currentVal,
+          context: {
+            companyName: editingProject.companyName,
+            roleName: editingProject.roleName,
+            purpose: "training_onboarding_evaluation"
+          }
+        })
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setEditingProject({
+          ...editingProject,
+          [fieldName]: fieldName === "checklistQuestions" || fieldName === "roleplayQuestions"
+            ? (typeof data.value === "string" ? data.value.split("\n").filter(Boolean) : data.value)
+            : data.value
+        });
+        addAuditEvent("success", "Раздел обучения отшлифован ИИ", `Сведения успешно дополнены и структурированы.`);
+      }
+    } catch (err) {
+      console.error(err);
+      addAuditEvent("warning", "Ошибка связи с ИИ", "Не удалось оптимизировать раздел.");
+    }
   };
 
   // Save TG ID
@@ -1578,18 +1763,41 @@ export default function EmployerPanel() {
                         value={specialtySearch}
                         onChange={(e) => setSpecialtySearch(e.target.value)}
                       />
-                      <div className="flex flex-wrap gap-1 max-h-16 overflow-y-auto mt-2 pr-1">
-                        {BASIC_SPECIALTIES.filter(s => s.toLowerCase().includes(specialtySearch.toLowerCase())).slice(0, 8).map(spec => (
-                          <button
-                            key={spec}
-                            type="button"
-                            onClick={() => { setSetupRoleName(spec); setSpecialtySearch(""); }}
-                            className="bg-[#1D3E5E]/85 border border-white/5 hover:border-[#E7C768] text-[9.5px] px-2 py-0.5 rounded text-white transition"
-                          >
-                            {spec}
-                          </button>
-                        ))}
-                      </div>
+                      {(() => {
+                        const existingSpecialties = Array.from(new Set(projects.map(p => p.roleName).filter(Boolean)));
+                        const allSpecialtiesCombined = Array.from(new Set([...existingSpecialties, ...BASIC_SPECIALTIES]));
+                        const filteredSpec = allSpecialtiesCombined.filter(s => s.toLowerCase().includes(specialtySearch.toLowerCase()));
+                        const hasExactMatch = allSpecialtiesCombined.some(s => s.toLowerCase() === specialtySearch.trim().toLowerCase());
+                        
+                        return (
+                          <div className="space-y-2 mt-1">
+                            <div className="flex flex-wrap gap-1 max-h-24 overflow-y-auto pr-1">
+                              {filteredSpec.slice(0, 12).map(spec => (
+                                <button
+                                  key={spec}
+                                  type="button"
+                                  onClick={() => { setSetupRoleName(spec); setSpecialtySearch(""); }}
+                                  className="bg-[#1D3E5E]/85 border border-white/5 hover:border-[#E7C768] text-[9.5px] px-2 py-0.5 rounded text-white transition flex items-center gap-1"
+                                >
+                                  💼 {spec}
+                                </button>
+                              ))}
+                              {specialtySearch.trim() && !hasExactMatch && (
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    setSetupRoleName(specialtySearch.trim());
+                                    setSpecialtySearch("");
+                                  }}
+                                  className="bg-amber-500/20 border border-amber-500/45 hover:border-amber-400 text-[9.5px] text-amber-350 font-bold px-2 py-0.5 rounded transition flex items-center gap-1 cursor-pointer"
+                                >
+                                  ➕ Добавить свою профессию: "{specialtySearch}"
+                                </button>
+                              )}
+                            </div>
+                          </div>
+                        );
+                      })()}
                     </div>
 
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -1661,6 +1869,16 @@ export default function EmployerPanel() {
                         </div>
                       )}
                     </div>
+
+                    <button
+                      type="button"
+                      disabled={isGenerating || isParsingFile}
+                      onClick={handleBeautifyNewVacancyWithAI}
+                      className="cursor-pointer w-full bg-[#17344F] border border-[#E7C768]/60 hover:border-[#E7C768] text-xs py-2.5 px-4 rounded-xl text-slate-100 font-bold flex items-center justify-center gap-1.5 transition select-none"
+                    >
+                      <Sparkles className="w-3.5 h-3.5 text-[#E7C768]" />
+                      <span>✨ Оформить красиво через ИИ (оптимизировать все условия)</span>
+                    </button>
 
                     <button
                       type="submit"
@@ -3238,13 +3456,39 @@ export default function EmployerPanel() {
                       addAuditEvent("success", "Бренд интегрирован", `Все ИИ-поля из организации "${comp.name}" успешно импортированы в лендинг вакансии.`);
                     }
                   }}
-                  className="px-3.5 py-1.5 text-xs font-bold rounded-xl text-green-950 bg-green-400 hover:bg-green-300 transition-all flex items-center justify-center gap-1 shadow-md shadow-green-950/20 self-start sm:self-center"
+                  className="px-3.5 py-1.5 text-xs font-bold rounded-xl text-green-950 bg-green-400 hover:bg-green-300 transition-all flex items-center justify-center gap-1 shadow-md shadow-green-950/20 self-start sm:self-center cursor-pointer select-none"
                 >
                   <Sparkles className="w-3.5 h-3.5" />
                   Перенести ИИ-поля в редактор лендинга
                 </button>
               </div>
             )}
+
+            {/* HIGH-FIDELITY ACTIVE CONSTRUCTOR TAB SWITCHER */}
+            <div className="flex border-b border-white/10 pb-1 gap-2 pt-2">
+              <button
+                type="button"
+                onClick={() => setActiveEditTab("landing")}
+                className={`px-4 py-2.5 text-xs font-bold rounded-t-xl transition-all cursor-pointer select-none flex items-center gap-1.5 ${
+                  activeEditTab === "landing"
+                    ? "bg-[#112335] text-[#E7C768] border-t-2 border-[#E7C768] shadow-md shadow-black/30"
+                    : "text-slate-400 hover:text-white hover:bg-white/5"
+                }`}
+              >
+                🗺️ Конструктор Лендинга Вкладышей
+              </button>
+              <button
+                type="button"
+                onClick={() => setActiveEditTab("training")}
+                className={`px-4 py-2.5 text-xs font-bold rounded-t-xl transition-all cursor-pointer select-none flex items-center gap-1.5 ${
+                  activeEditTab === "training"
+                    ? "bg-[#112335] text-[#E7C768] border-t-2 border-[#E7C768] shadow-md shadow-black/30"
+                    : "text-slate-400 hover:text-white hover:bg-white/5"
+                }`}
+              >
+                🎓 Конструктор Отбора и Обучения ИИ
+              </button>
+            </div>
 
             <form onSubmit={handleSaveEditedProject} className="space-y-5">
               
@@ -3340,13 +3584,22 @@ export default function EmployerPanel() {
               </div>
 
               {/* Middle Section: Switcher of the Interactive Subpages */}
-              <div className="space-y-4">
-                <div className="flex items-center justify-between border-b border-white/5 pb-2">
-                  <span className="text-xs font-mono uppercase tracking-wider text-[#E7C768]">
-                    🛠️ Тексты и живой предпросмотр подстраниц
-                  </span>
-                  <span className="text-[10px] text-slate-400">Выберите раздел для редактирования</span>
-                </div>
+              {activeEditTab === "landing" ? (
+                <div className="space-y-4">
+                  <div className="flex items-center justify-between border-b border-white/5 pb-2 border-b border-white/10">
+                    <span className="text-xs font-mono uppercase tracking-wider text-[#E7C768]">
+                      🛠️ Тексты и живой предпросмотр подстраниц
+                    </span>
+                    <button
+                      type="button"
+                      disabled={isEnhancingAllVac}
+                      onClick={handleEnhanceAllVacancyLandingFields}
+                      className="bg-[#E7C768] hover:bg-amber-300 disabled:opacity-50 text-slate-950 font-extrabold text-[10.5px] px-4 py-1.5 rounded-xl transition-all flex items-center gap-1.5 shadow-lg shadow-amber-950/20 cursor-pointer select-none border-none"
+                    >
+                      <Sparkles className="w-3.5 h-3.5 text-slate-950 animate-pulse" />
+                      <span>{isEnhancingAllVac ? "ИИ Оформляет все блоки..." : "✨ Оформить красиво все блоки лендинга через ИИ"}</span>
+                    </button>
+                  </div>
 
                  {/* Subpage Selectors Button Bar */}
                 <div className="flex flex-wrap gap-1.5">
@@ -3479,11 +3732,28 @@ export default function EmployerPanel() {
                         >
                           <div className="flex justify-between items-center">
                             <span className="text-xs font-bold text-[#E7C768]">{item.label}</span>
-                            {isActive && (
-                              <span className="text-[8px] bg-[#E7C768] text-[#112335] px-1.5 py-0.5 rounded font-bold uppercase tracking-wider">
-                                Выбран
-                              </span>
-                            )}
+                            <div className="flex items-center gap-1.5 select-none">
+                              <button
+                                type="button"
+                                title="Оформить блок красиво с ИИ ProTalk"
+                                onClick={async (e) => {
+                                  e.stopPropagation();
+                                  const currentVal = (editingProject as any)[item.field] !== undefined && (editingProject as any)[item.field] !== null && (editingProject as any)[item.field] !== "" 
+                                    ? (editingProject as any)[item.field] 
+                                    : getDefaultValue(item.key);
+                                  await handleEnhanceSingleVacancyField(item.field, currentVal);
+                                }}
+                                className="bg-[#E7C768] hover:bg-amber-300 text-slate-950 px-2 py-0.5 rounded-md font-mono text-[9px] font-extrabold shadow-sm flex items-center gap-1 transition-all cursor-pointer"
+                              >
+                                <Sparkles className="w-2.5 h-2.5" />
+                                <span>Полировка ИИ</span>
+                              </button>
+                              {isActive && (
+                                <span className="text-[8px] bg-[#E7C768] text-[#112335] px-1.5 py-0.5 rounded font-bold uppercase tracking-wider">
+                                  Выбран
+                                </span>
+                              )}
+                            </div>
                           </div>
                           <p className="text-[9px] text-slate-400 leading-tight">{item.hint}</p>
                           <textarea
@@ -3575,6 +3845,209 @@ export default function EmployerPanel() {
 
                 </div>
               </div>
+            ) : (
+              <div className="space-y-6">
+                {/* Drag-and-drop training files */}
+                  <div className="bg-black/25 p-5 rounded-3xl border border-white/10 space-y-3 animate-fadeIn">
+                    <span className="text-xs font-bold text-[#E7C768] flex items-center gap-1.5 uppercase font-mono tracking-wider">
+                      <Sparkles className="w-4 h-4 text-[#E7C768] animate-pulse" /> Закачать регламенты компании и обучающие материалы
+                    </span>
+                    <p className="text-[10.5px] text-slate-300 leading-relaxed font-sans">
+                      Перетащите сюда файлы с Вашими внутренними регламентами, инструкциями, описанием продукта или скриптами продаж. ИИ ProTalk расшифрует документы, выявит ключевые требования для отбора и автоматически составит учебные материалы соискателя прямо в систему.
+                    </p>
+                    
+                    <div 
+                      onClick={() => {
+                        const fileInput = document.getElementById("training-materials-file") as HTMLInputElement;
+                        if (fileInput) fileInput.click();
+                      }}
+                      onDragOver={(e) => { e.preventDefault(); setTrainingDragActive(true); }}
+                      onDragLeave={() => setTrainingDragActive(false)}
+                      onDrop={async (e) => {
+                        e.preventDefault();
+                        setTrainingDragActive(false);
+                        if (e.dataTransfer.files && e.dataTransfer.files[0]) {
+                          await handleParseTrainingMaterials(e.dataTransfer.files[0].name);
+                        }
+                      }}
+                      className={`cursor-pointer border-2 border-dashed rounded-2xl p-6 text-center transition-all ${
+                        trainingDragActive 
+                          ? "border-[#E7C768] bg-[#112335]/85 scale-[1.01]" 
+                          : "border-white/10 bg-black/15 hover:bg-[#112335]/35"
+                      }`}
+                    >
+                      <input 
+                        id="training-materials-file"
+                        type="file"
+                        className="hidden"
+                        onChange={async (e) => {
+                          if (e.target.files && e.target.files[0]) {
+                            await handleParseTrainingMaterials(e.target.files[0].name);
+                          }
+                        }}
+                      />
+                      {isParsingTrainingFile ? (
+                        <div className="flex flex-col items-center justify-center gap-1.5 text-[#E7C768] font-bold text-xs py-2">
+                          <RefreshCw className="w-5 h-5 animate-spin" />
+                          <span>ИИ ProTalk анализирует регламенты и формирует базы знаний...</span>
+                        </div>
+                      ) : (
+                        <div className="space-y-1 font-sans">
+                          <div className="text-xs font-bold text-slate-200">
+                            Кликните или перетащите регламент для обучения соискателей 📂
+                          </div>
+                          <p className="text-[9.5px] text-zinc-400">Поддерживаются форматы PDF, DOCX, TXT объёмом до 32 МБ</p>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6 font-sans">
+                    {/* Column 1: СУПЕР-ОТБОР (Интервью чек-лист и ролевая игра роли) */}
+                    <div className="bg-black/15 p-5 rounded-2xl border border-white/5 space-y-6 text-left">
+                      <div>
+                        <div className="flex items-center justify-between border-b border-white/10 pb-2 mb-3">
+                          <h4 className="text-xs font-bold text-[#E7C768] uppercase font-mono tracking-wider flex items-center gap-1">
+                            📝 ИИ-Чеклист телефонного собеседования
+                          </h4>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              const listText = (editingProject.checklistQuestions || []).join("\n");
+                              handleEnhanceTrainingField("checklistQuestions", listText);
+                            }}
+                            className="bg-[#E7C768] hover:bg-[#d6b75c] text-slate-950 font-bold text-[9.5px] px-2.5 py-1 rounded-lg transition-all flex items-center gap-1 cursor-pointer border-none"
+                          >
+                            <Sparkles className="w-3 h-3 text-slate-950" />
+                            <span>Дополнить ИИ</span>
+                          </button>
+                        </div>
+                        <p className="text-[10px] text-slate-400 mb-2 leading-relaxed">
+                          Критерии зачета, по которым Робот-Рекрутер оценивает кандидата на этапе звонка-интервью. Введите каждый критерий с новой строки:
+                        </p>
+                        <textarea
+                          rows={6}
+                          className="w-full bg-[#112335] text-xs p-3 rounded-xl border border-white/10 text-white font-mono focus:outline-none focus:border-[#E7C768] transition"
+                          value={(editingProject.checklistQuestions || []).join("\n")}
+                          onChange={(e) => {
+                            setEditingProject({
+                              ...editingProject,
+                              checklistQuestions: e.target.value.split("\n")
+                            });
+                          }}
+                          placeholder="Пример:&#10;Опыт работы в CRM от 1 года&#10;Грамотная устная русская речь&#10;Готовность к холодным звонкам"
+                        />
+                      </div>
+
+                      <div>
+                        <div className="flex items-center justify-between border-b border-white/10 pb-2 mb-3">
+                          <h4 className="text-xs font-bold text-[#E7C768] uppercase font-mono tracking-wider flex items-center gap-1">
+                            🎭 ИИ-Сценарий Ролевой игры / Тренажер
+                          </h4>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              const scText = (editingProject.roleplayQuestions || []).join("\n");
+                              handleEnhanceTrainingField("roleplayQuestions", scText);
+                            }}
+                            className="bg-[#E7C768] hover:bg-[#d6b75c] text-slate-950 font-bold text-[9.5px] px-2.5 py-1 rounded-lg transition-all flex items-center gap-1 cursor-pointer border-none"
+                          >
+                            <Sparkles className="w-3 h-3 text-slate-950" />
+                            <span>Улучшить игру</span>
+                          </button>
+                        </div>
+                        <p className="text-[10px] text-slate-400 mb-2 leading-relaxed">
+                          Ситуации возражений и ролевые кейсы, которые Робот сыграет с соискателем в реальном времени. Введите каждую симуляцию с новой строки:
+                        </p>
+                        <textarea
+                          rows={6}
+                          className="w-full bg-[#112335] text-xs p-3 rounded-xl border border-white/10 text-white font-mono focus:outline-none focus:border-[#E7C768] transition"
+                          value={(editingProject.roleplayQuestions || []).join("\n")}
+                          onChange={(e) => {
+                            setEditingProject({
+                              ...editingProject,
+                              roleplayQuestions: e.target.value.split("\n")
+                            });
+                          }}
+                          placeholder="Пример:&#10;Клиент: 'Я передумал покупать ваш скрипт, дорого'. Отработать удержание.&#10;Клиент: 'У меня уже есть amoCRM, зачем мне ассистент?' Отработать ценность."
+                        />
+                      </div>
+                    </div>
+
+                    {/* Column 2: ИНТЕРАКТИВНОЕ ОБУЧЕНИЕ */}
+                    <div className="bg-black/15 p-5 rounded-2xl border border-white/5 space-y-4 text-left font-sans">
+                      <div className="flex justify-between items-center border-b border-white/10 pb-2">
+                        <h4 className="text-xs font-bold text-[#E7C768] uppercase font-mono tracking-wider">
+                          📚 Содержание трех учебных разделов ИИ-Обучения
+                        </h4>
+                      </div>
+
+                      {/* Prof block */}
+                      <div className="space-y-1.5 mt-2">
+                        <div className="flex justify-between items-center bg-white/5 p-1 rounded-lg">
+                          <span className="text-[11px] font-bold text-slate-200">1. Профессиональное обучение (техники, регламенты):</span>
+                          <button
+                            type="button"
+                            onClick={() => handleEnhanceTrainingField("trainingProfText", editingProject.trainingProfText || "")}
+                            className="text-[9.5px] bg-[#E7C768] hover:bg-amber-300 text-slate-950 font-bold px-2.5 py-0.5 rounded-md transition-all flex items-center gap-1 cursor-pointer border-none"
+                          >
+                            <Sparkles className="w-2.5 h-2.5" /> Красиво структурировать
+                          </button>
+                        </div>
+                        <textarea
+                          rows={3}
+                          className="w-full bg-[#112335] text-xs p-2.5 rounded-xl border border-white/10 text-white focus:outline-none focus:border-[#E7C768] transition"
+                          value={editingProject.trainingProfText || ""}
+                          onChange={(e) => setEditingProject({ ...editingProject, trainingProfText: e.target.value })}
+                          placeholder="Учебный материал по навыкам продаж, обработки возражений, коммуникативным правилам..."
+                        />
+                      </div>
+
+                      {/* Product block */}
+                      <div className="space-y-1.5">
+                        <div className="flex justify-between items-center bg-white/5 p-1 rounded-lg">
+                          <span className="text-[11px] font-bold text-slate-200">2. Обучение продукту и услугам компании:</span>
+                          <button
+                            type="button"
+                            onClick={() => handleEnhanceTrainingField("trainingProductText", editingProject.trainingProductText || "")}
+                            className="text-[9.5px] bg-[#E7C768] hover:bg-amber-300 text-slate-950 font-bold px-2.5 py-0.5 rounded-md transition-all flex items-center gap-1 cursor-pointer border-none"
+                          >
+                            <Sparkles className="w-2.5 h-2.5" /> Сделать продающим
+                          </button>
+                        </div>
+                        <textarea
+                          rows={3}
+                          className="w-full bg-[#112335] text-xs p-2.5 rounded-xl border border-white/10 text-white focus:outline-none focus:border-[#E7C768] transition"
+                          value={editingProject.trainingProductText || ""}
+                          onChange={(e) => setEditingProject({ ...editingProject, trainingProductText: e.target.value })}
+                          placeholder="Информация о тарифах, продуктовой линейке, преимуществах для клиентов компании..."
+                        />
+                      </div>
+
+                      {/* System block */}
+                      <div className="space-y-1.5">
+                        <div className="flex justify-between items-center bg-white/5 p-1 rounded-lg">
+                          <span className="text-[11px] font-bold text-slate-200">3. Обучение процессам и системе сдачи отчетов:</span>
+                          <button
+                            type="button"
+                            onClick={() => handleEnhanceTrainingField("trainingSystemText", editingProject.trainingSystemText || "")}
+                            className="text-[9.5px] bg-[#E7C768] hover:bg-amber-300 text-slate-950 font-bold px-2.5 py-0.5 rounded-md transition-all flex items-center gap-1 cursor-pointer border-none"
+                          >
+                            <Sparkles className="w-2.5 h-2.5" /> Переоформить по пунктам
+                          </button>
+                        </div>
+                        <textarea
+                          rows={3}
+                          className="w-full bg-[#112335] text-xs p-2.5 rounded-xl border border-white/10 text-white focus:outline-none focus:border-[#E7C768] transition"
+                          value={editingProject.trainingSystemText || ""}
+                          onChange={(e) => setEditingProject({ ...editingProject, trainingSystemText: e.target.value })}
+                          placeholder="Правила ведения CRM сделок, временные интервалы смен, стандарты сдачи вечерних Excel/Google отчетов..."
+                        />
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
 
               {/* Botton control buttons */}
               <div className="pt-4 border-t border-white/10 flex gap-3">

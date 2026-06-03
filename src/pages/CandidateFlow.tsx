@@ -800,6 +800,10 @@ export default function CandidateFlow() {
   
   // 20 Checklist questions state
   const [checklistAnswers, setChecklistAnswers] = useState<{ question: string; answer: string; type?: string; options?: string[] }[]>([]);
+  const [checklistSysAnswers, setChecklistSysAnswers] = useState<{ question: string; answer: string; type?: string; options?: string[] }[]>([]);
+  const [activeChecklistPart, setActiveChecklistPart] = useState<"prof" | "sys">("prof");
+  const [checklistSysFeedback, setChecklistSysFeedback] = useState("");
+  const [checklistSysAnalysing, setChecklistSysAnalysing] = useState(false);
 
   // 3 situational cases
   const [situationsList, setSituationsList] = useState<any[]>([]);
@@ -897,18 +901,48 @@ export default function CandidateFlow() {
 
   // Populate checklist questions and cases when candidate context resolves
   useEffect(() => {
-    if (candidate && checklistAnswers.length === 0) {
-      const role = candidate.roleName || project?.roleName || "Менеджер по продажам";
-      const qs = get20ChecklistQuestions(role);
-      setChecklistAnswers(qs.map(qObj => ({
-        question: qObj.question,
-        type: qObj.type,
-        options: qObj.options,
-        correctAnswer: qObj.correctAnswer,
-        userAnswer: qObj.type === "select" ? qObj.options?.[1] || "" : getSmartDefaultAnswer(qObj.question, role),
-        answer: qObj.type === "select" ? qObj.options?.[1] || "" : getSmartDefaultAnswer(qObj.question, role)
-      })));
-      initSituations(role);
+    const loadAllChecklistsAndCases = async () => {
+      if (!candidate) return;
+      const role = candidate.roleName || project?.roleName || "Менеджер";
+      const company = project?.companyName || "Компания";
+
+      try {
+        // Load Profession Checklist
+        if (checklistAnswers.length === 0) {
+          const respProf = await fetch(`/api/get-questions?category=checklist_prof&roleName=${encodeURIComponent(role)}&companyName=${encodeURIComponent(company)}`);
+          const qsPr = await respProf.json();
+          setChecklistAnswers(qsPr.map((qObj: any) => ({
+            question: qObj.question,
+            type: qObj.type,
+            options: qObj.options,
+            correctAnswer: qObj.correctAnswer,
+            userAnswer: qObj.type === "select" ? qObj.options?.[0] || "" : getSmartDefaultAnswer(qObj.question, role),
+            answer: qObj.type === "select" ? qObj.options?.[0] || "" : getSmartDefaultAnswer(qObj.question, role)
+          })));
+        }
+
+        // Load System Checklist
+        if (checklistSysAnswers.length === 0) {
+          const respSys = await fetch(`/api/get-questions?category=checklist_sys&roleName=${encodeURIComponent(role)}&companyName=${encodeURIComponent(company)}`);
+          const qsSy = await respSys.json();
+          setChecklistSysAnswers(qsSy.map((qObj: any) => ({
+            question: qObj.question,
+            type: qObj.type,
+            options: qObj.options,
+            correctAnswer: qObj.correctAnswer,
+            userAnswer: qObj.type === "select" ? qObj.options?.[0] || "" : getSmartDefaultAnswer(qObj.question, role),
+            answer: qObj.type === "select" ? qObj.options?.[0] || "" : getSmartDefaultAnswer(qObj.question, role)
+          })));
+        }
+
+        initSituations(role);
+      } catch (err) {
+        console.error("Error loading checklist questions from backend:", err);
+      }
+    };
+
+    if (candidate && (checklistAnswers.length === 0 || checklistSysAnswers.length === 0)) {
+      loadAllChecklistsAndCases();
     }
   }, [candidate, project]);
 
@@ -945,25 +979,36 @@ export default function CandidateFlow() {
 
   const handleEvaluateChecklist = async () => {
     if (!candidate) return;
-    setChecklistAnalysing(true);
+    const isSys = activeChecklistPart === "sys";
+    if (isSys) {
+      setChecklistSysAnalysing(true);
+    } else {
+      setChecklistAnalysing(true);
+    }
     try {
       const res = await fetch("/api/evaluate-checklist", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           candidateId: candidate.id,
-          answers: checklistAnswers
+          answers: isSys ? checklistSysAnswers : checklistAnswers,
+          isSystem: isSys
         })
       });
       if (res.ok) {
         const data = await res.json();
-        setChecklistFeedback(data.feedback);
+        if (isSys) {
+          setChecklistSysFeedback(data.feedback);
+        } else {
+          setChecklistFeedback(data.feedback);
+        }
         await refreshCandidate();
       }
     } catch (e) {
       console.error(e);
     } finally {
       setChecklistAnalysing(false);
+      setChecklistSysAnalysing(false);
     }
   };
 
@@ -1085,11 +1130,16 @@ export default function CandidateFlow() {
   const [trainingExamFeedback, setTrainingExamFeedback] = useState("");
   const [trainingExamScore, setTrainingExamScore] = useState(0);
   const [trainingExamAnalysing, setTrainingExamAnalysing] = useState(false);
+  const [activeTrainingSubSectionIdx, setActiveTrainingSubSectionIdx] = useState(0);
 
   // Auto load active lesson's 20 quizzes
   const bIdxLocal = getTrainingBlockIdx();
   const currentBlockObj = candidate?.trainingPlan?.[bIdxLocal];
   const activeLessonObj = currentBlockObj?.lessons?.[activeLessonIdx];
+
+  useEffect(() => {
+    setActiveTrainingSubSectionIdx(0);
+  }, [trainingSubTab]);
 
   useEffect(() => {
     if (activeLessonObj && activeLessonObj.quizzes) {
@@ -2043,27 +2093,64 @@ export default function CandidateFlow() {
               </div>
             )}
 
-            {/* Sub-tab 2: CHECKLIST (20 Theoretical questions) */}
+            {/* Sub-tab 2: CHECKLIST (20 Theoretical questions for specialty & 20 for system) */}
             {interviewSubTab === "checklist" && (
               <div className="bg-[#1E4468]/15 border border-white/10 shadow-2xl backdrop-blur-md rounded-3xl p-6 md:p-8 space-y-6">
                 <div className="border-b border-white/5 pb-4 text-left">
-                  <span className="text-[#E7C768] font-bold text-xs uppercase tracking-wider block">Этап #2: Профессиональный Чек-Лист</span>
-                  <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2">
-                    <h2 className="text-2xl font-bold text-white font-serif">Тестирование по специальности</h2>
-                    {candidate?.scores?.checklistScore !== undefined && candidate.scores.checklistScore > 0 && (
-                      <span className="bg-emerald-500/25 text-emerald-300 font-mono text-sm font-black px-3 py-1 rounded-full border border-emerald-500/30">
-                        Результат: {candidate.scores.checklistScore} / 100 баллов!
+                  <span className="text-[#E7C768] font-bold text-xs uppercase tracking-wider block">Этап #2: Теоретические Чек-Листы</span>
+                  <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mt-2">
+                    <h2 className="text-2xl font-bold text-white font-serif">Тестирование ИИ</h2>
+                    <div className="flex flex-col gap-2 shrink-0">
+                      <span className={`font-mono text-xs px-3 py-1 rounded-full border ${
+                        candidate?.scores?.checklistScore !== undefined && candidate.scores.checklistScore > 0
+                          ? "bg-emerald-500/15 text-emerald-300 border-emerald-500/30"
+                          : "bg-amber-500/10 text-amber-300 border-amber-500/20"
+                      }`}>
+                        Профессия: {candidate?.scores?.checklistScore !== undefined && candidate.scores.checklistScore > 0 ? `${candidate.scores.checklistScore} / 100` : "Не сдано"}
                       </span>
-                    )}
+                      <span className={`font-mono text-xs px-3 py-1 rounded-full border ${
+                        candidate?.scores?.checklistSysScore !== undefined && candidate.scores.checklistSysScore > 0
+                          ? "bg-emerald-500/15 text-emerald-300 border-emerald-500/30"
+                          : "bg-amber-500/10 text-amber-300 border-amber-500/20"
+                      }`}>
+                        Система: {candidate?.scores?.checklistSysScore !== undefined && candidate.scores.checklistSysScore > 0 ? `${candidate.scores.checklistSysScore} / 100` : "Не сдано"}
+                      </span>
+                    </div>
                   </div>
-                  <p className="text-xs text-slate-300 mt-1">
-                    Ниже представлены <strong className="text-[#E7C768]">20 специализированных вопросов от нейронной сети</strong> по направлению <strong>{candidate?.roleName || project?.roleName || "Менеджер по продажам"}</strong>. Мы подготовили для вас качественные ориентировочные ответы, которые вы можете отредактировать под свой личный опыт и знания.
+                  <p className="text-xs text-slate-300 mt-2">
+                    Вам необходимо сдать <strong className="text-[#E7C768]">оба чек-листа по 20 вопросов</strong> (по профессии и по корпоративной системе). Отредактируйте ответы и отправьте их на оценку искусственного интеллекта.
                   </p>
                 </div>
 
+                {/* Sub-Checklist Tab Switcher */}
+                <div className="flex gap-2 p-1 bg-black/40 rounded-xl max-w-md border border-white/5">
+                  <button
+                    type="button"
+                    onClick={() => setActiveChecklistPart("prof")}
+                    className={`flex-1 py-2 text-xs font-bold rounded-lg transition-all cursor-pointer ${
+                      activeChecklistPart === "prof"
+                        ? "bg-[#E7C768] text-[#17344F]"
+                        : "text-slate-300 hover:bg-white/5"
+                    }`}
+                  >
+                    Чек-лист по Профессии
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setActiveChecklistPart("sys")}
+                    className={`flex-1 py-2 text-xs font-bold rounded-lg transition-all cursor-pointer ${
+                      activeChecklistPart === "sys"
+                        ? "bg-[#E7C768] text-[#17344F]"
+                        : "text-slate-300 hover:bg-white/5"
+                    }`}
+                  >
+                    Чек-лист по Системе
+                  </button>
+                </div>
+
                 {/* 20 Questions interactive forms */}
-                <div className="space-y-4 max-h-[440px] overflow-y-auto pr-2 text-left">
-                  {checklistAnswers.map((item, idx) => (
+                <div className="space-y-4 max-h-[400px] overflow-y-auto pr-2 text-left">
+                  {(activeChecklistPart === "prof" ? checklistAnswers : checklistSysAnswers).map((item, idx) => (
                     <div key={idx} className="bg-black/20 p-4 rounded-xl border border-white/5 space-y-2">
                       <div className="flex gap-2">
                         <span className="text-xs font-mono font-bold text-[#E7C768] bg-[#E7C768]/10 w-5 h-5 rounded flex items-center justify-center">
@@ -2080,14 +2167,21 @@ export default function CandidateFlow() {
                                 key={opt}
                                 type="button"
                                 onClick={() => {
-                                  const updated = [...checklistAnswers] as any[];
-                                  updated[idx].answer = opt;
-                                  updated[idx].userAnswer = opt;
-                                  setChecklistAnswers(updated);
+                                  if (activeChecklistPart === "prof") {
+                                    const updated = [...checklistAnswers] as any[];
+                                    updated[idx].answer = opt;
+                                    updated[idx].userAnswer = opt;
+                                    setChecklistAnswers(updated);
+                                  } else {
+                                    const updated = [...checklistSysAnswers] as any[];
+                                    updated[idx].answer = opt;
+                                    updated[idx].userAnswer = opt;
+                                    setChecklistSysAnswers(updated);
+                                  }
                                 }}
-                                className={`text-left p-2.5 rounded-lg border text-xs transition-all flex items-start gap-2 ${
+                                className={`text-left p-2.5 rounded-lg border text-xs transition-all flex items-start gap-2 cursor-pointer ${
                                   isSelected
-                                    ? "bg-[#E7C768]/15 border-[#E7C768] text-white font-medium"
+                                    ? "bg-[#E7C768]/15 border-[#E7C768] text-white font-medium shadow"
                                     : "bg-white/5 border-white/10 text-slate-300 hover:bg-white/10"
                                 }`}
                               >
@@ -2105,12 +2199,19 @@ export default function CandidateFlow() {
                         <input
                           type="text"
                           className="w-full bg-[#17344F] text-xs text-slate-150 p-2 border border-white/10 rounded-lg focus:outline-none focus:border-[#E7C768]"
-                          value={item.answer}
+                          value={item.answer || ""}
                           onChange={(e) => {
-                            const updated = [...checklistAnswers] as any[];
-                            updated[idx].answer = e.target.value;
-                            updated[idx].userAnswer = e.target.value;
-                            setChecklistAnswers(updated);
+                            if (activeChecklistPart === "prof") {
+                              const updated = [...checklistAnswers] as any[];
+                              updated[idx].answer = e.target.value;
+                              updated[idx].userAnswer = e.target.value;
+                              setChecklistAnswers(updated);
+                            } else {
+                              const updated = [...checklistSysAnswers] as any[];
+                              updated[idx].answer = e.target.value;
+                              updated[idx].userAnswer = e.target.value;
+                              setChecklistSysAnswers(updated);
+                            }
                           }}
                         />
                       )}
@@ -2120,9 +2221,9 @@ export default function CandidateFlow() {
 
                 <div className="pt-4 border-t border-white/5 flex flex-col md:flex-row gap-4 items-center justify-between">
                   <div className="text-xs text-slate-300 text-left">
-                    {checklistFeedback ? (
+                    {(activeChecklistPart === "prof" ? checklistFeedback : checklistSysFeedback) ? (
                       <div className="p-3 bg-emerald-500/10 border border-emerald-500/25 rounded-xl text-[11px] text-[#A6E22E] max-w-xl">
-                        <strong>Разбор чек-листа:</strong> {checklistFeedback}
+                        <strong>Разбор чек-листа:</strong> {activeChecklistPart === "prof" ? checklistFeedback : checklistSysFeedback}
                       </div>
                     ) : (
                       "Вы можете отредактировать любой ответ. Когда закончите — отправляйте форму на ИИ-оценку."
@@ -2131,10 +2232,10 @@ export default function CandidateFlow() {
 
                   <button
                     onClick={handleEvaluateChecklist}
-                    disabled={checklistAnalysing}
+                    disabled={activeChecklistPart === "prof" ? checklistAnalysing : checklistSysAnalysing}
                     className="cursor-pointer bg-gradient-to-r from-[#FF1A1A] to-[#E54C00] text-white font-bold py-3 px-8 rounded-xl text-xs flex items-center gap-1 hover:opacity-95 shadow shrink-0"
                   >
-                    {checklistAnalysing ? (
+                    {(activeChecklistPart === "prof" ? checklistAnalysing : checklistSysAnalysing) ? (
                       <>
                         <Loader className="w-4 h-4 animate-spin" /> Рассчитываем баллы...
                       </>
@@ -2146,13 +2247,19 @@ export default function CandidateFlow() {
                   </button>
                 </div>
 
-                {candidate?.scores?.checklistScore !== undefined && candidate.scores.checklistScore > 0 && (
-                  <div className="pt-4 border-t border-white/10 text-right">
+                {((candidate?.scores?.checklistScore !== undefined && candidate.scores.checklistScore > 0) ||
+                  (candidate?.scores?.checklistSysScore !== undefined && candidate.scores.checklistSysScore > 0)) && (
+                  <div className="pt-4 border-t border-white/10 flex flex-col sm:flex-row justify-between items-center gap-2">
+                    <span className="text-[11px] text-slate-400 italic">
+                      {!(candidate?.scores?.checklistScore !== undefined && candidate.scores.checklistScore > 0) && "Осталось сдать чек-лист по профессии"}
+                      {candidate?.scores?.checklistScore !== undefined && candidate.scores.checklistScore > 0 && !(candidate?.scores?.checklistSysScore !== undefined && candidate.scores.checklistSysScore > 0) && "Осталось сдать чек-лист по системе"}
+                      {candidate?.scores?.checklistScore !== undefined && candidate.scores.checklistScore > 0 && candidate?.scores?.checklistSysScore !== undefined && candidate.scores.checklistSysScore > 0 && "Оба чек-листа успешно сданы! Переходите на диалог."}
+                    </span>
                     <button
                       onClick={() => setInterviewSubTab("situations")}
                       className="cursor-pointer bg-[#1E4468] hover:bg-[#1E4468]/80 text-[#E7C768] font-bold py-2.5 px-5 rounded-xl text-xs inline-flex items-center gap-1.5"
                     >
-                      Перейти на финальный шаг #3: Ситуации <ArrowRight className="w-3.5 h-3.5" />
+                      Перейти на шаг #3: Ситуации <ArrowRight className="w-3.5 h-3.5" />
                     </button>
                   </div>
                 )}
@@ -2464,6 +2571,8 @@ export default function CandidateFlow() {
                     );
                   }
                   const lesson = block.lessons[activeLessonIdx] || block.lessons[0];
+                  const answeredCount = trainingAnswers.filter(a => !!a.userAnswer).length;
+                  const activeQuiz = trainingAnswers[activeTrainingSubSectionIdx];
 
                   return (
                     <div className="p-6 md:p-8 space-y-6 text-left">
@@ -2472,179 +2581,168 @@ export default function CandidateFlow() {
                         <span className="text-[10px] uppercase font-mono font-bold text-[#E7C768] tracking-wider block bg-[#1E4468]/80 w-max px-2.5 py-0.5 rounded border border-white/10">
                           {block.title}
                         </span>
-                        <h2 className="text-xl font-bold text-white mt-2">{lesson.title}</h2>
-                        <p className="text-xs text-gray-300 mt-1">{block.description}</p>
+                        <h2 className="text-xl font-bold text-white mt-2">Портал обучения ИИ: 20 детальных разделов</h2>
+                        <p className="text-xs text-slate-300 mt-1">Изучите каждый раздел и ответьте на соответствующий проверочный вопрос. Наберите 100 баллов, чтобы сдать модуль аттестации.</p>
                       </div>
 
-                      {/* Content panel */}
-                      <div className="bg-black/35 p-6 rounded-2xl border border-white/10 text-xs text-gray-250 leading-relaxed font-normal whitespace-pre-wrap">
-                        {lesson.content}
-                      </div>
-
-                      {/* Dynamic 20 Questions Lesson Quiz Form */}
-                      {activeLessonObj && activeLessonObj.quizzes && (
-                        <div className="space-y-6 border-t border-white/10 pt-6">
-                          <div className="flex items-center gap-2">
-                            <HelpCircle className="w-5 h-5 text-[#E7C768]" />
-                            <h4 className="font-bold text-xs text-[#E7C768] uppercase">ИИ-Экзамен по модулю (20 вопросов):</h4>
-                          </div>
-
-                          {/* Completed/Feedback Banner */}
-                          {trainingExamSubmitted && (
-                            <div className="bg-[#102A45]/80 p-5 rounded-2xl border border-[#E7C768]/30 space-y-3">
-                              <div className="flex items-center justify-between border-b border-white/10 pb-3">
-                                <span className="text-white font-bold text-xs">Итоговый результат аттестации:</span>
-                                <span className="text-[#E7C768] font-bold text-base font-mono">{trainingExamScore} из 100 баллов</span>
-                              </div>
-                              <p className="text-xs text-emerald-400 font-medium whitespace-pre-wrap">{trainingExamFeedback}</p>
-                              {candidate?.currentStage === "certified" && (
-                                <div className="p-3 bg-emerald-500/10 border border-emerald-500/30 rounded-xl text-[11px] text-emerald-400 font-bold animate-pulse text-center">
-                                  🎉 Поздравляем! Вы полностью завершили программу обучения и сертифицированы компанией! Работодатель уже получил Ваши результаты.
-                                </div>
-                              )}
-                            </div>
-                          )}
-
-                          {/* 20 Interleaved questions board */}
-                          <div className="space-y-4 max-h-[460px] overflow-y-auto pr-2">
-                            {trainingAnswers.map((item, idx) => (
-                              <div key={idx} className="bg-black/25 p-4 rounded-xl border border-white/5 space-y-2 text-left animate-fadeIn">
-                                <div className="flex gap-2">
-                                  <span className="text-xs font-mono font-bold text-[#E7C768] bg-[#E7C768]/15 w-5 h-5 rounded flex items-center justify-center shrink-0">
-                                    {idx + 1}
-                                  </span>
-                                  <h5 className="text-xs font-bold text-white leading-tight">{item.question}</h5>
-                                </div>
-
-                                {item.type === "select" ? (
-                                  <div className="grid grid-cols-1 md:grid-cols-2 gap-2 pt-1.5">
-                                    {item.options?.map((opt: string) => {
-                                      const isSelected = (item.userAnswer || "").trim().toLowerCase() === opt.trim().toLowerCase();
-                                      return (
-                                        <button
-                                          key={opt}
-                                          type="button"
-                                          disabled={trainingExamSubmitted}
-                                          onClick={() => {
-                                            const updated = [...trainingAnswers];
-                                            updated[idx].userAnswer = opt;
-                                            setTrainingAnswers(updated);
-                                          }}
-                                          className={`text-left p-2 rounded-lg border text-[11px] transition-all flex items-start gap-2 ${
-                                            isSelected
-                                              ? "bg-[#E7C768]/15 border-[#E7C768] text-white font-medium"
-                                              : "bg-white/5 border-white/10 text-slate-300 hover:bg-white/10 disabled:hover:bg-white/5"
-                                          }`}
-                                        >
-                                          <span className={`w-3 h-3 rounded-full border shrink-0 mt-0.5 flex items-center justify-center ${
-                                            isSelected ? "border-[#E7C768]" : "border-slate-500"
-                                          }`}>
-                                            {isSelected && <span className="w-1 h-1 rounded-full bg-[#E7C768]" />}
-                                          </span>
-                                          <span>{opt}</span>
-                                        </button>
-                                      );
-                                    })}
-                                  </div>
-                                ) : (
-                                  <textarea
-                                    disabled={trainingExamSubmitted}
-                                    placeholder="Ваш развернутый ответ..."
-                                    className="w-full bg-[#17344F] text-xs text-slate-150 p-2.5 border border-white/10 rounded-lg focus:outline-none focus:border-[#E7C768]"
-                                    rows={2}
-                                    value={item.userAnswer || ""}
-                                    onChange={(e) => {
-                                      const updated = [...trainingAnswers];
-                                      updated[idx].userAnswer = e.target.value;
-                                      setTrainingAnswers(updated);
-                                    }}
-                                  />
-                                )}
-                              </div>
-                            ))}
-                          </div>
-
-                          {/* Submit buttons block */}
-                          {!trainingExamSubmitted && (
+                      {/* 20 Chapters horizontal tabs */}
+                      <div className="flex gap-1 overflow-x-auto pb-3 border-b border-white/5 scrollbar-thin">
+                        {trainingAnswers.map((item, idx) => {
+                          const isEditingActive = idx === activeTrainingSubSectionIdx;
+                          const isAnswered = !!item.userAnswer;
+                          return (
                             <button
+                              key={idx}
                               type="button"
-                              onClick={handleTrainingExamSubmit}
-                              disabled={trainingExamAnalysing}
-                              className="cursor-pointer w-full bg-gradient-to-r from-[#FF1A1A] to-[#E54C00] text-white font-bold py-3 rounded-xl text-xs flex items-center justify-center gap-1.5 hover:opacity-95 shadow active:scale-98 transition-all"
+                              onClick={() => setActiveTrainingSubSectionIdx(idx)}
+                              className={`px-3 py-2 rounded-xl text-[10.5px] font-bold shrink-0 cursor-pointer transition flex items-center gap-1 border-none ${
+                                isEditingActive
+                                  ? "bg-[#E7C768] text-[#17344F] font-black scale-[1.02]"
+                                  : isAnswered
+                                    ? "bg-emerald-500/10 text-emerald-300 border border-emerald-500/20"
+                                    : "bg-white/5 text-slate-300 hover:bg-white/10"
+                              }`}
                             >
-                              {trainingExamAnalysing ? (
-                                <>
-                                  <Loader className="w-4 h-4 animate-spin" /> Автоматически оцениваем ответы в ИИ-ассистенте...
-                                </>
-                              ) : (
-                                <>
-                                  <ShieldCheck className="w-4 h-4" /> Завершить экзамен и сдать на ИИ-проверку
-                                </>
-                              )}
+                              <span>{idx + 1}</span>
+                              {isAnswered && <span className="text-[9px] text-emerald-400">✔</span>}
                             </button>
-                          )}
+                          );
+                        })}
+                      </div>
+
+                      {/* Active Subsection Detail - Study Landing Page */}
+                      {activeQuiz ? (
+                        <div className="space-y-4 animate-fadeIn">
+                          {/* Rich theory card */}
+                          <div className="bg-black/25 p-5 rounded-2xl border border-white/5 space-y-3">
+                            <div className="flex items-center gap-2 text-[#E7C768] border-b border-white/5 pb-2">
+                              <span className="bg-[#E7C768]/15 text-[#E7C768] font-mono text-xs font-bold w-5 h-5 rounded flex items-center justify-center">
+                                {activeTrainingSubSectionIdx + 1}
+                              </span>
+                              <h4 className="text-xs font-extrabold uppercase tracking-wider">
+                                Лендинг-Раздел: {activeQuiz.materialTitle || "Общие правила"}
+                              </h4>
+                            </div>
+                            <p className="text-xs text-slate-200 leading-relaxed font-sans whitespace-pre-wrap">
+                              {activeQuiz.materialContent || "Для изучения этого вопроса ознакомьтесь с основными инструкциями компании."}
+                            </p>
+                          </div>
+
+                          {/* Instant control check */}
+                          <div className="bg-[#E7C768]/5 p-5 rounded-2xl border border-[#E7C768]/15 space-y-4">
+                            <div className="flex items-center gap-1.5 border-b border-white/5 pb-2">
+                              <HelpCircle className="w-4 h-4 text-[#E7C768]" />
+                              <h5 className="text-[10px] uppercase font-bold text-[#E7C768] tracking-wider">
+                                Контрольный вопрос к разделу №{activeTrainingSubSectionIdx + 1}
+                              </h5>
+                            </div>
+                            
+                            <p className="text-xs text-white font-bold font-sans">{activeQuiz.question}</p>
+
+                            {activeQuiz.type === "select" ? (
+                              <div className="grid grid-cols-1 md:grid-cols-2 gap-2 pt-1">
+                                {activeQuiz.options?.map((opt: string) => {
+                                  const isSelected = (activeQuiz.userAnswer || "").trim().toLowerCase() === opt.trim().toLowerCase();
+                                  return (
+                                    <button
+                                      key={opt}
+                                      type="button"
+                                      disabled={trainingExamSubmitted}
+                                      onClick={() => {
+                                        const updated = [...trainingAnswers];
+                                        updated[activeTrainingSubSectionIdx].userAnswer = opt;
+                                        setTrainingAnswers(updated);
+                                      }}
+                                      className={`text-left p-2.5 rounded-lg border text-xs transition-all flex items-start gap-2 cursor-pointer ${
+                                        isSelected
+                                          ? "bg-[#E7C768]/15 border-[#E7C768] text-white font-medium shadow"
+                                          : "bg-white/5 border-white/10 text-slate-300 hover:bg-white/10 disabled:opacity-50"
+                                      }`}
+                                    >
+                                      <span className={`w-3.5 h-3.5 rounded-full border shrink-0 mt-0.5 flex items-center justify-center ${
+                                        isSelected ? "border-[#E7C768]" : "border-slate-500"
+                                      }`}>
+                                        {isSelected && <span className="w-1.5 h-1.5 rounded-full bg-[#E7C768]" />}
+                                      </span>
+                                      <span>{opt}</span>
+                                    </button>
+                                  );
+                                })}
+                              </div>
+                            ) : (
+                              <textarea
+                                disabled={trainingExamSubmitted}
+                                placeholder="Ваш развернутый ответ на вопрос..."
+                                className="w-full bg-[#17344F] text-xs text-slate-150 p-3 border border-white/10 rounded-lg focus:outline-none focus:border-[#E7C768] font-sans"
+                                rows={2}
+                                value={activeQuiz.userAnswer || ""}
+                                onChange={(e) => {
+                                  const updated = [...trainingAnswers];
+                                  updated[activeTrainingSubSectionIdx].userAnswer = e.target.value;
+                                  setTrainingAnswers(updated);
+                                }}
+                              />
+                            )}
+                          </div>
+                        </div>
+                      ) : (
+                        <div className="p-8 text-center text-slate-400 text-xs">
+                          Вопросы не обнаружены. Пожалуйста, обратитесь к куратору или дождитесь генерации.
                         </div>
                       )}
 
-                      {/* Fallback Legacy Single Lesson Quiz Form */}
-                      {lesson.quiz && !lesson.quizzes && (
-                        <div className="space-y-4 border-t border-white/10 pt-6">
-                          <div className="flex items-center gap-2">
-                            <HelpCircle className="w-5 h-5 text-[#E7C768]" />
-                            <h4 className="font-bold text-xs text-[#E7C768] uppercase">Проверочный Вопрос ИИ-Робота:</h4>
-                          </div>
-
-                          <div className="space-y-2">
-                            <p className="font-semibold text-sm text-white">{lesson.quiz.question}</p>
-                            
-                            <div className="space-y-2 mt-3">
-                              {lesson.quiz.options.map((opt, oIdx) => {
-                                const isSelected = selectedQuizIdx === oIdx;
-                                return (
-                                  <button
-                                    key={oIdx}
-                                    type="button"
-                                    onClick={() => !quizSubmitted && setSelectedQuizIdx(oIdx)}
-                                    className={`cursor-pointer w-full text-left text-xs p-3.5 rounded-xl border transition-all ${
-                                      isSelected
-                                        ? "bg-[#1E4468] text-white border-[#E7C768]"
-                                        : "bg-white/5 hover:bg-white/10 text-white border-white/10"
-                                    }`}
-                                  >
-                                    <span className="font-bold mr-2">{String.fromCharCode(65 + oIdx)}.</span> {opt}
-                                  </button>
-                                );
-                              })}
+                      {/* Training Progress / Feedbacks Block */}
+                      {trainingExamSubmitted ? (
+                        <div className="pt-6 border-t border-white/10 space-y-4 text-left">
+                          <div className="bg-[#102A45]/80 p-5 rounded-2xl border border-[#E7C768]/30 space-y-3">
+                            <div className="flex items-center justify-between border-b border-white/10 pb-3">
+                              <span className="text-white font-bold text-xs">Результат ИИ-аттестации:</span>
+                              <span className="text-[#E7C768] font-bold text-base font-mono">{trainingExamScore} из 100 баллов!</span>
                             </div>
+                            <p className="text-xs text-emerald-400 font-medium whitespace-pre-wrap">{trainingExamFeedback}</p>
+                            {trainingExamScore === 100 ? (
+                              <div className="p-3 bg-emerald-500/10 border border-emerald-500/30 rounded-xl text-[11px] text-emerald-400 font-bold animate-pulse text-center">
+                                🎉 Поздравляем! Вы набрали максимальный балл (100) и успешно завершили этот блок курса!
+                              </div>
+                            ) : (
+                              <div className="p-3 bg-rose-500/10 border border-rose-500/30 rounded-xl text-[11px] text-rose-400 font-bold text-center">
+                                ⚠️ Требуется пересдача! Для продвижения дальше необходимо набрать ровно 100 баллов. Повторно изучите проблемные разделы Wiki, отредактируйте ответы и отправьте еще раз.
+                              </div>
+                            )}
                           </div>
-
-                          {quizMessage && (
-                            <div className={`p-4 text-xs rounded-xl border ${quizError ? "bg-[#FF4C4C]/10 text-[#FF4C4C] border-[#FF4C4C]/20" : "bg-emerald-950/40 text-emerald-400 border border-emerald-500/20"}`}>
-                               {quizMessage}
-                            </div>
+                          {trainingExamScore !== 100 && (
+                            <button
+                              type="button"
+                              onClick={() => setTrainingExamSubmitted(false)}
+                              className="cursor-pointer w-full bg-[#E7C768] text-[#17344F] font-bold py-2.5 rounded-xl text-xs hover:shadow active:scale-[0.99] transition border-none"
+                            >
+                              ✏️ Исправить неверные ответы и пересдать
+                            </button>
                           )}
-
-                          <div className="flex gap-2">
-                            {!quizSubmitted && (
-                              <button
-                                type="button"
-                                onClick={handleLessonQuizSubmit}
-                                className="cursor-pointer bg-gradient-to-r from-[#FF1A1A] to-[#E54C00] text-white font-bold py-2.5 px-6 rounded-xl text-xs flex items-center gap-1 hover:shadow-md active:scale-98"
-                              >
-                                Отправить ответ на проверку
-                              </button>
-                            )}
-                            
-                            {(quizSubmitted || lesson.isCompleted) && (
-                              <button
-                                type="button"
-                                onClick={handleNextLesson}
-                                className="cursor-pointer bg-[#E7C768] text-[#17344F] font-bold py-2.5 px-6 rounded-xl text-xs flex items-center gap-1 hover:shadow"
-                              >
-                                Далее <ArrowRight className="w-4 h-4" />
-                              </button>
-                            )}
+                        </div>
+                      ) : (
+                        <div className="pt-6 border-t border-white/5 flex flex-col md:flex-row justify-between items-center gap-4 text-left">
+                          <div className="text-xs text-slate-300">
+                            Заполнено разделов Wiki: <strong>{answeredCount} из 20</strong>
                           </div>
+                          <button
+                            type="button"
+                            onClick={handleTrainingExamSubmit}
+                            disabled={trainingExamAnalysing || answeredCount < 20}
+                            className="cursor-pointer bg-gradient-to-r from-[#FF1A1A] to-[#E54C00] disabled:from-stone-700 disabled:to-stone-800 text-white font-bold py-3 px-8 rounded-xl text-xs flex items-center gap-1.5 hover:opacity-95 shadow transition-all shrink-0 border-none"
+                          >
+                            {trainingExamAnalysing ? (
+                              <>
+                                <Loader className="w-4 h-4 animate-spin" /> Рассчитываем оценку аттестации...
+                              </>
+                            ) : answeredCount < 20 ? (
+                              "Заполните контрольные вопросы во всех 20 разделах"
+                            ) : (
+                              <>
+                                <ShieldCheck className="w-4 h-4" /> Сдать экзамен на ИИ-проверку куратором 🎓
+                              </>
+                            )}
+                          </button>
                         </div>
                       )}
                     </div>

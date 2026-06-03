@@ -17,6 +17,9 @@ export interface TrainingQuiz {
   correctAnswer?: string;
   userAnswer?: string;
   isCorrect?: boolean;
+  explanation?: string;
+  materialTitle?: string;
+  materialContent?: string;
 }
 
 export interface TrainingLesson {
@@ -48,6 +51,7 @@ export interface CandidateScores {
   overallScore: number;   // 0-100
   assessmentSummary: string;
   checklistScore?: number; // 0-100
+  checklistSysScore?: number; // 0-100
   situationsScore?: number; // 0-100
 }
 
@@ -88,6 +92,12 @@ export interface JobProject {
   roleplayQuestions: string[];
   createdTasks?: boolean;
 
+  questionsChecklistProf?: TrainingQuiz[];
+  questionsChecklistSys?: TrainingQuiz[];
+  questionsTrainProf?: TrainingQuiz[];
+  questionsTrainProduct?: TrainingQuiz[];
+  questionsTrainSys?: TrainingQuiz[];
+
   // Precise subpages details
   vacancyText?: string;
   motivationTextDetail?: string;
@@ -100,6 +110,11 @@ export interface JobProject {
   logoUrl?: string;
   tasksActivityText?: string;
   cabinetTabsText?: string;
+  
+  // Custom training curricula
+  trainingProfText?: string;
+  trainingProductText?: string;
+  trainingSystemText?: string;
   
   // Mission & stats
   missionText?: string;
